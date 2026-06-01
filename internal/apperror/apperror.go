@@ -3,8 +3,9 @@ package apperror
 import "fmt"
 
 type AppError struct {
-    Code    int    
-    Message string 
+    Code    int
+    Message string
+    Details interface{} // validation errors, extra info
 }
 
 func (e *AppError) Error() string {
@@ -17,6 +18,10 @@ func NotFound(message string) *AppError {
 
 func BadRequest(message string) *AppError {
     return &AppError{Code: 400, Message: message}
+}
+
+func BadRequestWithDetails(message string, details interface{}) *AppError {
+    return &AppError{Code: 400, Message: message, Details: details}
 }
 
 func Internal(message string) *AppError {

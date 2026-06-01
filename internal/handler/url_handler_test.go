@@ -73,13 +73,21 @@ func TestShorten_Success(t *testing.T) {
 
     assert.Equal(t, http.StatusCreated, w.Code)
 
-    var resp map[string]string
+    // New response shape — use map[string]interface{} since values are mixed types
+    var resp map[string]interface{}
     err := json.Unmarshal(w.Body.Bytes(), &resp)
     require.NoError(t, err)
 
-    assert.Contains(t, resp["short_url"], "http://localhost:8080/")
-    assert.NotEmpty(t, resp["short_code"])
-    assert.Equal(t, "https://example.com", resp["original_url"])
+    // Check top level
+    assert.Equal(t, true, resp["success"])
+
+    // data is a nested object — type assert it to map[string]interface{}
+    data, ok := resp["data"].(map[string]interface{})
+    require.True(t, ok, "data should be an object")
+
+    assert.Contains(t, data["short_url"], "http://localhost:8080/")
+    assert.NotEmpty(t, data["short_code"])
+    assert.Equal(t, "https://example.com", data["original_url"])
 }
 
 func TestShorten_MissingURL(t *testing.T) {

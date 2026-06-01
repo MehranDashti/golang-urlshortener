@@ -4,8 +4,8 @@ import (
     "net/http"
 
     "github.com/gin-gonic/gin"
-	"urlshortener/internal/model"
     "urlshortener/internal/apperror"
+    "urlshortener/internal/model"
 )
 
 type AuthService interface {
@@ -22,45 +22,38 @@ func NewAuthHandler(service AuthService) *AuthHandler {
 }
 
 func (h *AuthHandler) Signup(c *gin.Context) {
-    var body struct {
-        Email    string `json:"email"`
-        Password string `json:"password"`
-    }
-    if err := c.ShouldBindJSON(&body); err != nil || body.Email == "" || body.Password == "" {
-        respondError(c, apperror.BadRequest("email and password are required"))
+    var req SignupRequest
+    if appErr := bindAndValidate(c, &req); appErr != nil {
+        respondError(c, appErr)
         return
     }
 
-    user, appErr := h.service.Signup(body.Email, body.Password)
+    user, appErr := h.service.Signup(req.Email, req.Password)
     if appErr != nil {
         respondError(c, appErr)
         return
     }
 
-    c.JSON(http.StatusCreated, gin.H{
-        "message": "account created",
-        "user": gin.H{
-            "id":    user.ID,
-            "email": user.Email,
-        },
+    respondSuccess(c, http.StatusCreated, "حساب کاربری با موفقیت ساخته شد", gin.H{
+        "id":    user.ID,
+        "email": user.Email,
     })
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
-    var body struct {
-        Email    string `json:"email"`
-        Password string `json:"password"`
-    }
-    if err := c.ShouldBindJSON(&body); err != nil || body.Email == "" || body.Password == "" {
-        respondError(c, apperror.BadRequest("email and password are required"))
+    var req LoginRequest
+    if appErr := bindAndValidate(c, &req); appErr != nil {
+        respondError(c, appErr)
         return
     }
 
-    tokenStr, appErr := h.service.Login(body.Email, body.Password)
+    tokenStr, appErr := h.service.Login(req.Email, req.Password)
     if appErr != nil {
         respondError(c, appErr)
         return
     }
 
-    c.JSON(http.StatusOK, gin.H{"token": tokenStr})
+    respondSuccess(c, http.StatusOK, "ورود با موفقیت انجام شد", gin.H{
+        "token": tokenStr,
+    })
 }
