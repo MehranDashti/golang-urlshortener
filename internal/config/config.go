@@ -1,16 +1,20 @@
 package config
 
 import(
-	"fmt"
+    "fmt"
     "os"
+    "strconv"
+    "time"
 
     "github.com/joho/godotenv"
 )
 
 type Config struct {
-	Port string
-	BaseURL string
-	DSN string
+	Port            string
+	BaseURL         string
+	DSN             string
+    JWTSecret       string
+    JWTDuration     time.Duration
 }
 
 func Load() *Config {
@@ -25,9 +29,16 @@ func Load() *Config {
         os.Getenv("DB_NAME"),
 	)
 
+	hours, err := strconv.Atoi(os.Getenv("JWT_DURATION_HOURS"))
+    if err != nil || hours == 0 {
+        hours = 24
+    }
+
 	return &Config{
 		Port:    os.Getenv("APP_PORT"),
 		BaseURL: os.Getenv("APP_BASE_URL"),
         DSN:     dsn,
+        JWTSecret:   os.Getenv("JWT_SECRET"),
+        JWTDuration: time.Duration(hours) * time.Hour,
 	}
 }
