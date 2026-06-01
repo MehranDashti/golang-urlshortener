@@ -12,7 +12,9 @@ func Setup(
     adminHandler *handler.AdminHandler,
     authMiddleware gin.HandlerFunc,
 ) *gin.Engine {
-    r := gin.Default()
+    r := gin.New()
+    r.Use(middleware.Logger())
+    r.Use(gin.Recovery())
 
     // All routes live under /api/v1
     api := r.Group("/api/v1")
