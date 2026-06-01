@@ -6,6 +6,7 @@ import (
     "net/http"
     "net/http/httptest"
     "testing"
+    "time"
 
     "github.com/gin-gonic/gin"
     "github.com/stretchr/testify/assert"
@@ -17,12 +18,12 @@ import (
 )
 
 type mockURLService struct {
-    shortenFn        func(originalURL string, userID string) (*model.URL, *apperror.AppError)
+    shortenFn        func(originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError)
     getByShortCodeFn func(code string) (*model.URL, *apperror.AppError)
 }
 
-func (m *mockURLService) ShortenURL(originalURL string, userID string) (*model.URL, *apperror.AppError) {
-    return m.shortenFn(originalURL, userID)
+func (m *mockURLService) ShortenURL(originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError) {
+    return m.shortenFn(originalURL, userID, expiresAt)
 }
 
 func (m *mockURLService) GetByShortCode(code string) (*model.URL, *apperror.AppError) {
@@ -48,7 +49,7 @@ func setupRouter(svc handler.URLService) *gin.Engine {
 
 func TestShorten_Success(t *testing.T) {
     mock := &mockURLService{
-        shortenFn: func(originalURL string, userID string) (*model.URL, *apperror.AppError) {
+        shortenFn: func(originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError) {
             return &model.URL{
                 OriginalURL: originalURL,
                 ShortCode:   "abc123",
@@ -93,7 +94,7 @@ func TestShorten_MissingURL(t *testing.T) {
 
 func TestShorten_RepoError(t *testing.T) {
     mock := &mockURLService{
-        shortenFn: func(originalURL string, userID string) (*model.URL, *apperror.AppError) {
+        shortenFn: func(originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError) {
             return nil, apperror.Internal("could not create short url")
         },
     }

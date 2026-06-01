@@ -2,6 +2,7 @@ package handler
 
 import (
     "net/http"
+    "time"
 
     "github.com/gin-gonic/gin"
     "urlshortener/internal/middleware"
@@ -10,7 +11,7 @@ import (
 )
 
 type URLService interface {
-    ShortenURL(originalURL string, userID string) (*model.URL, *apperror.AppError)
+    ShortenURL(originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError)
     GetByShortCode(code string) (*model.URL, *apperror.AppError)
 }
 
@@ -30,6 +31,7 @@ func respondError(c *gin.Context, err *apperror.AppError) {
 func (h *URLHandler) Shorten(c *gin.Context) {
     var body struct {
         URL string `json:"url"`
+        ExpiresAt *string `json:"expires_at"`
     }
     if err := c.ShouldBindJSON(&body); err != nil || body.URL == "" {
         respondError(c, apperror.BadRequest("valid url is required"))
@@ -42,7 +44,17 @@ func (h *URLHandler) Shorten(c *gin.Context) {
         return
     }
 
-    url, appErr := h.service.ShortenURL(body.URL, userID.(string))
+    var expiresAt *time.Time
+    if body.ExpiresAt != nil {
+        t, err := time.Parse(time.RFC3339, *body.ExpiresAt)
+        if err != nil {
+            respondError(c, apperror.BadRequest("invalid expires_at format, use RFC3339: 2006-01-02T15:04:05Z"))
+            return
+        }
+        expiresAt = &t
+    }
+
+    url, appErr := h.service.ShortenURL(body.URL, userID.(string), expiresAt)
     if appErr != nil {
         respondError(c, appErr)
         return

@@ -1,6 +1,8 @@
 package service
 
 import (
+    "time"
+    
     "urlshortener/internal/apperror"
     "urlshortener/internal/model"
     "urlshortener/internal/util"
@@ -20,11 +22,12 @@ func NewURLService(repo URLRepository) *URLService {
     return &URLService{repo: repo}
 }
 
-func (s *URLService) ShortenURL(originalURL string, userID string) (*model.URL, *apperror.AppError) {
+func (s *URLService) ShortenURL(originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError) {
     url := &model.URL{
         UserID:      userID,
         OriginalURL: originalURL,
         ShortCode:   util.GenerateShortCode(),
+        ExpiresAt:   expiresAt,
     }
 
     if err := s.repo.Create(url); err != nil {
@@ -41,6 +44,9 @@ func (s *URLService) GetByShortCode(code string) (*model.URL, *apperror.AppError
     }
     if url == nil {
         return nil, apperror.NotFound("short url not found")
+    }
+    if url.ExpiresAt != nil && time.Now().After(*url.ExpiresAt) {
+        return nil, apperror.Gone("short url has expired")
     }
 
     s.repo.IncrementClicks(url.ID)

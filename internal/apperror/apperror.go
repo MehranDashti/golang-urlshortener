@@ -26,3 +26,7 @@ func Internal(message string) *AppError {
 func Unauthorized(message string) *AppError {
     return &AppError{Code: 401, Message: message}
 }
+
+func Gone(message string) *AppError {
+    return &AppError{Code: 410, Message: message}
+}
