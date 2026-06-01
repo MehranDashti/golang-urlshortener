@@ -11,17 +11,18 @@ import (
     "github.com/stretchr/testify/assert"
     "github.com/stretchr/testify/require"
     "urlshortener/internal/handler"
+    "urlshortener/internal/middleware" 
     "urlshortener/internal/model"
 	"urlshortener/internal/apperror"
 )
 
 type mockURLService struct {
-    shortenFn        func(originalURL string) (*model.URL, *apperror.AppError)
+    shortenFn        func(originalURL string, userID string) (*model.URL, *apperror.AppError)
     getByShortCodeFn func(code string) (*model.URL, *apperror.AppError)
 }
 
-func (m *mockURLService) ShortenURL(originalURL string) (*model.URL, *apperror.AppError) {
-    return m.shortenFn(originalURL)
+func (m *mockURLService) ShortenURL(originalURL string, userID string) (*model.URL, *apperror.AppError) {
+    return m.shortenFn(originalURL, userID)
 }
 
 func (m *mockURLService) GetByShortCode(code string) (*model.URL, *apperror.AppError) {
@@ -32,7 +33,13 @@ func setupRouter(svc handler.URLService) *gin.Engine {
     gin.SetMode(gin.TestMode)
     h := handler.NewURLHandler(svc, "http://localhost:8080")
     r := gin.New()
-    r.POST("/shorten", h.Shorten)
+
+    fakeAuth := func(c *gin.Context) {
+        c.Set(middleware.UserIDKey, "test-user-id")
+        c.Next()
+    }
+
+    r.POST("/shorten", fakeAuth, h.Shorten)
     r.GET("/:code", h.Redirect)
     return r
 }
@@ -41,7 +48,7 @@ func setupRouter(svc handler.URLService) *gin.Engine {
 
 func TestShorten_Success(t *testing.T) {
     mock := &mockURLService{
-        shortenFn: func(originalURL string) (*model.URL, *apperror.AppError) {
+        shortenFn: func(originalURL string, userID string) (*model.URL, *apperror.AppError) {
             return &model.URL{
                 OriginalURL: originalURL,
                 ShortCode:   "abc123",
@@ -86,7 +93,7 @@ func TestShorten_MissingURL(t *testing.T) {
 
 func TestShorten_RepoError(t *testing.T) {
     mock := &mockURLService{
-        shortenFn: func(originalURL string) (*model.URL, *apperror.AppError) {
+        shortenFn: func(originalURL string, userID string) (*model.URL, *apperror.AppError) {
             return nil, apperror.Internal("could not create short url")
         },
     }
