@@ -13,6 +13,7 @@ import (
 type URLService interface {
     ShortenURL(originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError)
     GetByShortCode(code string) (*model.URL, *apperror.AppError)
+    GetUserLinks(userID string) ([]*model.URL, *apperror.AppError)
 }
 
 type URLHandler struct {
@@ -77,4 +78,18 @@ func (h *URLHandler) Redirect(c *gin.Context) {
     }
 
     c.Redirect(http.StatusMovedPermanently, url.OriginalURL)
+}
+
+func (h *URLHandler) ListLinks(c *gin.Context) {
+    userID, exists := c.Get(middleware.UserIDKey)  // from auth middleware via context
+    if !exists {
+        respondError(c, apperror.Unauthorized("not authenticated"))
+        return
+    }
+    urls, appErr := h.service.GetUserLinks(userID.(string))
+    if appErr != nil {
+        respondError(c, appErr)
+        return
+    }
+    c.JSON(http.StatusOK, gin.H{"links": urls})
 }

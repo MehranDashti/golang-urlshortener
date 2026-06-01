@@ -22,6 +22,7 @@ func Setup(
     client.Use(authMiddleware)
     {
         client.POST("/shorten", urlHandler.Shorten)
+        client.GET("/links", urlHandler.ListLinks)
     }
 
     return r

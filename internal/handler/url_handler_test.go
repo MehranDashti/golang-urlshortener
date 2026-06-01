@@ -20,6 +20,7 @@ import (
 type mockURLService struct {
     shortenFn        func(originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError)
     getByShortCodeFn func(code string) (*model.URL, *apperror.AppError)
+    GetUserLinksFn func(userID string) ([]*model.URL, *apperror.AppError)
 }
 
 func (m *mockURLService) ShortenURL(originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError) {
@@ -28,6 +29,10 @@ func (m *mockURLService) ShortenURL(originalURL string, userID string, expiresAt
 
 func (m *mockURLService) GetByShortCode(code string) (*model.URL, *apperror.AppError) {
     return m.getByShortCodeFn(code)
+}
+
+func (m *mockURLService) GetUserLinks(userID string) ([]*model.URL, *apperror.AppError) {
+    return m.GetUserLinksFn(userID)
 }
 
 func setupRouter(svc handler.URLService) *gin.Engine {

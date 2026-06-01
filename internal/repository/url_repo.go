@@ -36,3 +36,9 @@ func (r *URLRepository) IncrementClicks(id string) error {
         UpdateColumn("clicks", gorm.Expr("clicks + 1"))
     return result.Error
 }
+
+func (r *URLRepository) FindByUserID(userID string) ([]*model.URL, error) {
+    var urls []*model.URL
+    result := r.db.Where("user_id = ?", userID).Find(&urls)
+    return urls, result.Error
+}

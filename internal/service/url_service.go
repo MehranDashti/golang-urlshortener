@@ -2,7 +2,7 @@ package service
 
 import (
     "time"
-    
+
     "urlshortener/internal/apperror"
     "urlshortener/internal/model"
     "urlshortener/internal/util"
@@ -12,6 +12,7 @@ type URLRepository interface {
     Create(url *model.URL) error
     FindByShortCode(code string) (*model.URL, error)
     IncrementClicks(id string) error
+    FindByUserID(userID string) ([]*model.URL, error)
 }
 
 type URLService struct {
@@ -51,4 +52,12 @@ func (s *URLService) GetByShortCode(code string) (*model.URL, *apperror.AppError
 
     s.repo.IncrementClicks(url.ID)
     return url, nil
+}
+
+func (s *URLService) GetUserLinks(userID string) ([]*model.URL, *apperror.AppError) {
+    urls, err := s.repo.FindByUserID(userID)
+    if err != nil {
+        return nil, apperror.Internal("could not fetch links")
+    }
+    return urls, nil
 }
