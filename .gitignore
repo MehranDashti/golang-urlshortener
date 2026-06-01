@@ -1,0 +1,35 @@
+# Environment variables - NEVER commit these
+.env
+.env.*
+!.env.example
+
+# Build output
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/bin/
+/dist/
+/build/
+
+# Go specific
+*.test
+*.out
+coverage.html
+coverage.out
+vendor/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
