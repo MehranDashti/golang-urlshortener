@@ -14,26 +14,30 @@ func Setup(
 ) *gin.Engine {
     r := gin.Default()
 
-    // Public routes
-    r.POST("/auth/signup", authHandler.Signup)
-    r.POST("/auth/login", authHandler.Login)
-    r.GET("/:code", urlHandler.Redirect)
-
-    // Client routes — JWT required
-    client := r.Group("/client")
-    client.Use(authMiddleware)
+    // All routes live under /api/v1
+    api := r.Group("/api/v1")
     {
-        client.POST("/shorten", urlHandler.Shorten)
-        client.GET("/links", urlHandler.ListLinks)
-    }
+        // Public routes
+        api.POST("/auth/signup", authHandler.Signup)
+        api.POST("/auth/login", authHandler.Login)
+        api.GET("/:code", urlHandler.Redirect)
 
-    // Admin routes — JWT + admin role required
-    admin := r.Group("/admin")
-    admin.Use(authMiddleware, middleware.Admin())
-    {
-        admin.GET("/links", adminHandler.ListLinks)
-        admin.DELETE("/links/:id", adminHandler.DeleteLink)
-        admin.GET("/users", adminHandler.ListUsers)
+        // Client routes — JWT required
+        client := api.Group("/client")
+        client.Use(authMiddleware)
+        {
+            client.POST("/shorten", urlHandler.Shorten)
+            client.GET("/links", urlHandler.ListLinks)
+        }
+
+        // Admin routes — JWT + admin role required
+        admin := api.Group("/admin")
+        admin.Use(authMiddleware, middleware.Admin())
+        {
+            admin.GET("/links", adminHandler.ListLinks)
+            admin.DELETE("/links/:id", adminHandler.DeleteLink)
+            admin.GET("/users", adminHandler.ListUsers)
+        }
     }
 
     return r
