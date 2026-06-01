@@ -18,7 +18,11 @@ func main() {
     db := database.Connect(cfg.DSN)
 
     // Token manager
-    tokenManager := token.NewManager(cfg.JWTSecret, cfg.JWTDuration)
+    tokenManager := token.NewManager(
+        cfg.JWTSecret,
+        cfg.AccessTokenDuration,
+        cfg.RefreshTokenDuration,
+    )
 
     // Repositories
     urlRepo := repository.NewURLRepository(db)

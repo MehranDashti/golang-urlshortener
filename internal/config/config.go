@@ -15,6 +15,8 @@ type Config struct {
 	DSN             string
     JWTSecret       string
     JWTDuration     time.Duration
+    AccessTokenDuration   time.Duration
+    RefreshTokenDuration  time.Duration
 }
 
 func Load() *Config {
@@ -34,11 +36,23 @@ func Load() *Config {
         hours = 24
     }
 
+    accessMinutes, err := strconv.Atoi(os.Getenv("ACCESS_TOKEN_DURATION_MINUTES"))
+    if err != nil || accessMinutes == 0 {
+        accessMinutes = 15
+    }
+
+    refreshDays, err := strconv.Atoi(os.Getenv("REFRESH_TOKEN_DURATION_DAYS"))
+    if err != nil || refreshDays == 0 {
+        refreshDays = 7
+    }
+
 	return &Config{
 		Port:    os.Getenv("APP_PORT"),
 		BaseURL: os.Getenv("APP_BASE_URL"),
         DSN:     dsn,
         JWTSecret:   os.Getenv("JWT_SECRET"),
         JWTDuration: time.Duration(hours) * time.Hour,
+        AccessTokenDuration:  time.Duration(accessMinutes) * time.Minute,
+        RefreshTokenDuration: time.Duration(refreshDays) * 24 * time.Hour,
 	}
 }

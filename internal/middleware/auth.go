@@ -45,6 +45,17 @@ func Auth(tokenManager *token.Manager) gin.HandlerFunc {
             return
         }
 
+        // Reject refresh tokens used as access tokens
+        if claims.TokenType != token.AccessToken {
+            c.JSON(http.StatusUnauthorized, map[string]interface{}{
+                "success": false,
+                "code":    401,
+                "message": "invalid token type",
+            })
+            c.Abort()
+            return
+        }
+
         c.Set(UserIDKey, claims.UserID)
         c.Set(UserRoleKey, claims.Role)
         c.Next()

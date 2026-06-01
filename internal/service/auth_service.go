@@ -6,6 +6,7 @@ import (
     "urlshortener/pkg/token"
 
     "golang.org/x/crypto/bcrypt"
+    
 )
 
 type UserRepository interface {
@@ -17,6 +18,12 @@ type AuthService struct {
     repo         UserRepository
     tokenManager *token.Manager
 }
+
+type TokenPair struct {
+    AccessToken  string
+    RefreshToken string
+}
+
 
 func NewAuthService(repo UserRepository, tokenManager *token.Manager) *AuthService {
     return &AuthService{repo: repo, tokenManager: tokenManager}
@@ -48,25 +55,60 @@ func (s *AuthService) Signup(email, password string) (*model.User, *apperror.App
     return user, nil
 }
 
-func (s *AuthService) Login(email, password string) (string, *apperror.AppError) {
+func (s *AuthService) Login(email, password string) (*TokenPair, *apperror.AppError) {
     user, err := s.repo.FindByEmail(email)
     if err != nil {
-        return "", apperror.Internal("could not find user")
+        return nil, apperror.Internal("could not find user")
     }
-
     if user == nil {
-        return "", apperror.Unauthorized("invalid credentials")
+        return nil, apperror.Unauthorized("invalid credentials")
     }
 
     err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
     if err != nil {
-        return "", apperror.Unauthorized("invalid credentials")
+        return nil, apperror.Unauthorized("invalid credentials")
     }
 
-    tokenStr, err := s.tokenManager.Generate(user.ID, user.Role)
+    accessToken, err := s.tokenManager.GenerateAccessToken(user.ID, user.Role)
     if err != nil {
-        return "", apperror.Internal("could not generate token")
+        return nil, apperror.Internal("could not generate access token")
     }
 
-    return tokenStr, nil
+    refreshToken, err := s.tokenManager.GenerateRefreshToken(user.ID, user.Role)
+    if err != nil {
+        return nil, apperror.Internal("could not generate refresh token")
+    }
+
+    return &TokenPair{
+        AccessToken:  accessToken,
+        RefreshToken: refreshToken,
+    }, nil
+}
+
+func (s *AuthService) Refresh(refreshTokenStr string) (*TokenPair, *apperror.AppError) {
+    claims, err := s.tokenManager.Validate(refreshTokenStr)
+    if err != nil {
+        return nil, apperror.Unauthorized("invalid or expired refresh token")
+    }
+
+    // Make sure this is actually a refresh token — not an access token
+    if claims.TokenType != token.RefreshToken {
+        return nil, apperror.Unauthorized("invalid token type")
+    }
+
+    // Issue a brand new pair — old refresh token is now discarded (rotation)
+    accessToken, err := s.tokenManager.GenerateAccessToken(claims.UserID, claims.Role)
+    if err != nil {
+        return nil, apperror.Internal("could not generate access token")
+    }
+
+    newRefreshToken, err := s.tokenManager.GenerateRefreshToken(claims.UserID, claims.Role)
+    if err != nil {
+        return nil, apperror.Internal("could not generate refresh token")
+    }
+
+    return &TokenPair{
+        AccessToken:  accessToken,
+        RefreshToken: newRefreshToken,
+    }, nil
 }
