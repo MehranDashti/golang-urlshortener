@@ -4,45 +4,40 @@ import (
     "net/http"
 
     "github.com/gin-gonic/gin"
-
+    "urlshortener/internal/apperror"
     "urlshortener/internal/model"
-    "urlshortener/internal/repository"
-    "urlshortener/internal/util"
 )
 
+type URLService interface {
+    ShortenURL(originalURL string) (*model.URL, *apperror.AppError)
+    GetByShortCode(code string) (*model.URL, *apperror.AppError)
+}
+
 type URLHandler struct {
-    repo    *repository.URLRepository
+    service URLService
     baseURL string
 }
 
-func NewURLHandler(repo *repository.URLRepository, baseURL string) *URLHandler {
-    return &URLHandler{
-        repo:    repo,
-        baseURL: baseURL,
-    }
+func NewURLHandler(service URLService, baseURL string) *URLHandler {
+    return &URLHandler{service: service, baseURL: baseURL}
+}
+
+func respondError(c *gin.Context, err *apperror.AppError) {
+    c.JSON(err.Code, gin.H{"error": err.Message})
 }
 
 func (h *URLHandler) Shorten(c *gin.Context) {
     var body struct {
         URL string `json:"url"`
     }
-
     if err := c.ShouldBindJSON(&body); err != nil || body.URL == "" {
-        c.JSON(http.StatusBadRequest, gin.H{
-            "error": "valid url is required",
-        })
+        respondError(c, apperror.BadRequest("valid url is required"))
         return
     }
 
-    url := &model.URL{
-        OriginalURL: body.URL,
-        ShortCode:   util.GenerateShortCode(),
-    }
-
-    if err := h.repo.Create(url); err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{
-            "error": "could not create short url",
-        })
+    url, appErr := h.service.ShortenURL(body.URL)
+    if appErr != nil {
+        respondError(c, appErr)
         return
     }
 
@@ -56,21 +51,11 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 func (h *URLHandler) Redirect(c *gin.Context) {
     code := c.Param("code")
 
-    url, err := h.repo.FindByShortCode(code)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{
-            "error": "something went wrong",
-        })
+    url, appErr := h.service.GetByShortCode(code)
+    if appErr != nil {
+        respondError(c, appErr)
         return
     }
 
-    if url == nil {
-        c.JSON(http.StatusNotFound, gin.H{
-            "error": "short url not found",
-        })
-        return
-    }
-
-    h.repo.IncrementClicks(url.ID)
     c.Redirect(http.StatusMovedPermanently, url.OriginalURL)
 }
