@@ -27,15 +27,17 @@ func main() {
     // Services
     urlService := service.NewURLService(urlRepo)
     authService := service.NewAuthService(userRepo, tokenManager)
+    adminService := service.NewAdminService(urlRepo, userRepo)
 
     // Handlers
     urlHandler := handler.NewURLHandler(urlService, cfg.BaseURL)
     authHandler := handler.NewAuthHandler(authService)
+    adminHandler := handler.NewAdminHandler(adminService)
 
     // Auth middleware
     authMiddleware := middleware.Auth(tokenManager)
 
-    r := router.Setup(urlHandler, authHandler, authMiddleware)
+    r := router.Setup(urlHandler, authHandler, adminHandler, authMiddleware)
 
     log.Println("server starting on port", cfg.Port)
     if err := r.Run(":" + cfg.Port); err != nil {

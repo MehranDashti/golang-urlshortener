@@ -6,13 +6,12 @@ import (
 	"urlshortener/internal/apperror"
 )
 
-// APIResponse is the standard shape for every response in the app
 type APIResponse struct {
     Success bool        `json:"success"`
     Code    int         `json:"code"`
     Message string      `json:"message"`
-    Data    interface{} `json:"data,omitempty"`  // omitempty = omit if nil
-    Error   interface{} `json:"error,omitempty"` // omitempty = omit if nil
+    Data    interface{} `json:"data,omitempty"` 
+    Error   interface{} `json:"error,omitempty"` 
 }
 
 func respondSuccess(c *gin.Context, code int, message string, data interface{}) {

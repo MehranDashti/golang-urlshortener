@@ -5,10 +5,12 @@ import (
     "time"
 
     "github.com/golang-jwt/jwt/v5"
+    "urlshortener/internal/model"
 )
 
 type Claims struct {
-    UserID string `json:"user_id"`
+    UserID string     `json:"user_id"`
+    Role   model.Role `json:"role"`
     jwt.RegisteredClaims
 }
 
@@ -24,15 +26,15 @@ func NewManager(secret string, duration time.Duration) *Manager {
     }
 }
 
-func (m *Manager) Generate(userID string) (string, error) {
+func (m *Manager) Generate(userID string, role model.Role) (string, error) {
     claims := &Claims{
         UserID: userID,
+        Role:   role,
         RegisteredClaims: jwt.RegisteredClaims{
             ExpiresAt: jwt.NewNumericDate(time.Now().Add(m.duration)),
             IssuedAt:  jwt.NewNumericDate(time.Now()),
         },
     }
-
     token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
     return token.SignedString(m.secret)
 }

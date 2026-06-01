@@ -42,3 +42,14 @@ func (r *URLRepository) FindByUserID(userID string) ([]*model.URL, error) {
     result := r.db.Where("user_id = ?", userID).Find(&urls)
     return urls, result.Error
 }
+
+func (r *URLRepository) FindAll() ([]*model.URL, error) {
+    var urls []*model.URL
+    result := r.db.Find(&urls)
+    return urls, result.Error
+}
+
+func (r *URLRepository) Delete(id string) error {
+    result := r.db.Delete(&model.URL{}, "id = ?", id)
+    return result.Error
+}

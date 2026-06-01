@@ -5,7 +5,7 @@ import "fmt"
 type AppError struct {
     Code    int
     Message string
-    Details interface{} // validation errors, extra info
+    Details interface{}
 }
 
 func (e *AppError) Error() string {

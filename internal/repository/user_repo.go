@@ -25,3 +25,9 @@ func (r *UserRepository) FindByEmail(email string) (*model.User, error) {
     }
     return &user, result.Error
 }
+
+func (r *UserRepository) FindAll() ([]*model.User, error) {
+    var users []*model.User
+    result := r.db.Find(&users)
+    return users, result.Error
+}

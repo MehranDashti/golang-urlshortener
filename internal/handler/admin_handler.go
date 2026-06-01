@@ -1,0 +1,75 @@
+package handler
+
+import (
+    "net/http"
+    "time"
+
+    "github.com/gin-gonic/gin"
+    "urlshortener/internal/apperror"
+    "urlshortener/internal/model"
+)
+
+type AdminService interface {
+    GetAllLinks() ([]*model.URL, *apperror.AppError)
+    DeleteLink(id string) *apperror.AppError
+    GetAllUsers() ([]*model.User, *apperror.AppError)
+}
+
+type AdminHandler struct {
+    service AdminService
+}
+
+func NewAdminHandler(service AdminService) *AdminHandler {
+    return &AdminHandler{service: service}
+}
+
+func (h *AdminHandler) ListLinks(c *gin.Context) {
+    urls, appErr := h.service.GetAllLinks()
+    if appErr != nil {
+        respondError(c, appErr)
+        return
+    }
+    respondSuccess(c, http.StatusOK, "عملیات با موفقیت انجام شد", urls)
+}
+
+func (h *AdminHandler) DeleteLink(c *gin.Context) {
+    id := c.Param("id")
+    if id == "" {
+        respondError(c, apperror.BadRequest("id is required"))
+        return
+    }
+
+    if appErr := h.service.DeleteLink(id); appErr != nil {
+        respondError(c, appErr)
+        return
+    }
+
+    respondSuccess(c, http.StatusOK, "لینک با موفقیت حذف شد", nil)
+}
+
+func (h *AdminHandler) ListUsers(c *gin.Context) {
+    users, appErr := h.service.GetAllUsers()
+    if appErr != nil {
+        respondError(c, appErr)
+        return
+    }
+
+    type safeUser struct {
+        ID        string     `json:"id"`
+        Email     string     `json:"email"`
+        Role      model.Role `json:"role"`
+        CreatedAt time.Time  `json:"created_at"`
+    }
+
+    result := make([]safeUser, len(users))
+    for i, u := range users {
+        result[i] = safeUser{
+            ID:        u.ID,
+            Email:     u.Email,
+            Role:      u.Role,
+            CreatedAt: u.CreatedAt,
+        }
+    }
+
+    respondSuccess(c, http.StatusOK, "عملیات با موفقیت انجام شد", result)
+}

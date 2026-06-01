@@ -63,7 +63,7 @@ func (s *AuthService) Login(email, password string) (string, *apperror.AppError)
         return "", apperror.Unauthorized("invalid credentials")
     }
 
-    tokenStr, err := s.tokenManager.Generate(user.ID)
+    tokenStr, err := s.tokenManager.Generate(user.ID, user.Role)
     if err != nil {
         return "", apperror.Internal("could not generate token")
     }
