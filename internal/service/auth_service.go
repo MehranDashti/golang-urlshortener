@@ -8,7 +8,6 @@ import (
     "golang.org/x/crypto/bcrypt"
 )
 
-// UserRepository is the interface the auth service needs.
 type UserRepository interface {
     Create(user *model.User) error
     FindByEmail(email string) (*model.User, error)

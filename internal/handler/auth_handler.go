@@ -37,7 +37,13 @@ func (h *AuthHandler) Signup(c *gin.Context) {
         return
     }
 
-    c.JSON(http.StatusCreated, gin.H{"message": "account created", "user": user})
+    c.JSON(http.StatusCreated, gin.H{
+        "message": "account created",
+        "user": gin.H{
+            "id":    user.ID,
+            "email": user.Email,
+        },
+    })
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {

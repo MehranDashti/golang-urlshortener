@@ -20,8 +20,9 @@ func NewURLService(repo URLRepository) *URLService {
     return &URLService{repo: repo}
 }
 
-func (s *URLService) ShortenURL(originalURL string) (*model.URL, *apperror.AppError) {
+func (s *URLService) ShortenURL(originalURL string, userID string) (*model.URL, *apperror.AppError) {
     url := &model.URL{
+        UserID:      userID,
         OriginalURL: originalURL,
         ShortCode:   util.GenerateShortCode(),
     }

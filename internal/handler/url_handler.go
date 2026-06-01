@@ -4,12 +4,13 @@ import (
     "net/http"
 
     "github.com/gin-gonic/gin"
+    "urlshortener/internal/middleware"
     "urlshortener/internal/apperror"
     "urlshortener/internal/model"
 )
 
 type URLService interface {
-    ShortenURL(originalURL string) (*model.URL, *apperror.AppError)
+    ShortenURL(originalURL string, userID string) (*model.URL, *apperror.AppError)
     GetByShortCode(code string) (*model.URL, *apperror.AppError)
 }
 
@@ -35,7 +36,13 @@ func (h *URLHandler) Shorten(c *gin.Context) {
         return
     }
 
-    url, appErr := h.service.ShortenURL(body.URL)
+    userID, exists := c.Get(middleware.UserIDKey)
+    if !exists {
+        respondError(c, apperror.Unauthorized("not authenticated"))
+        return
+    }
+
+    url, appErr := h.service.ShortenURL(body.URL, userID.(string))
     if appErr != nil {
         respondError(c, appErr)
         return

@@ -15,7 +15,7 @@ func Setup(
     // Public routes
     r.POST("/auth/signup", authHandler.Signup)
     r.POST("/auth/login", authHandler.Login)
-    r.GET("/:code", urlHandler.Redirect) // redirect stays public
+    r.GET("/:code", urlHandler.Redirect)
 
     // Protected routes — JWT required
     client := r.Group("/client")
