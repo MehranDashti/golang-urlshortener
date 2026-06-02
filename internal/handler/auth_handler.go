@@ -1,6 +1,7 @@
 package handler
 
 import (
+    "context"
     "net/http"
 
     "github.com/gin-gonic/gin"
@@ -10,8 +11,10 @@ import (
 )
 
 type AuthService interface {
-    Signup(email, password string) (*model.User, *apperror.AppError)
-    Login(email, password string) (*service.TokenPair, *apperror.AppError)
+    Signup(ctx context.Context, email,
+        password string) (*model.User, *apperror.AppError)
+    Login(ctx context.Context, email,
+        password string) (*service.TokenPair, *apperror.AppError)
     Refresh(refreshToken string) (*service.TokenPair, *apperror.AppError)
 }
 
@@ -30,7 +33,8 @@ func (h *AuthHandler) Signup(c *gin.Context) {
         return
     }
 
-    user, appErr := h.service.Signup(req.Email, req.Password)
+    user, appErr := h.service.Signup(
+        c.Request.Context(), req.Email, req.Password)
     if appErr != nil {
         respondError(c, appErr)
         return
@@ -49,7 +53,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
         return
     }
 
-    pair, appErr := h.service.Login(req.Email, req.Password)
+    pair, appErr := h.service.Login(
+        c.Request.Context(), req.Email, req.Password)
     if appErr != nil {
         respondError(c, appErr)
         return

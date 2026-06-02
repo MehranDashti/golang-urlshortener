@@ -1,6 +1,7 @@
 package service
 
 import (
+    "context"
     "time"
 
     "urlshortener/internal/apperror"
@@ -9,10 +10,10 @@ import (
 )
 
 type URLRepository interface {
-    Create(url *model.URL) error
-    FindByShortCode(code string) (*model.URL, error)
-    IncrementClicks(id string) error
-    FindByUserID(userID string) ([]*model.URL, error)
+    Create(ctx context.Context, url *model.URL) error
+    FindByShortCode(ctx context.Context, code string) (*model.URL, error)
+    IncrementClicks(ctx context.Context, id string) error
+    FindByUserID(ctx context.Context, userID string) ([]*model.URL, error)
 }
 
 type URLService struct {
@@ -23,7 +24,12 @@ func NewURLService(repo URLRepository) *URLService {
     return &URLService{repo: repo}
 }
 
-func (s *URLService) ShortenURL(originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError) {
+func (s *URLService) ShortenURL(
+    ctx context.Context,
+    originalURL string,
+    userID string,
+    expiresAt *time.Time) (*model.URL, *apperror.AppError) {
+
     url := &model.URL{
         UserID:      userID,
         OriginalURL: originalURL,
@@ -31,15 +37,17 @@ func (s *URLService) ShortenURL(originalURL string, userID string, expiresAt *ti
         ExpiresAt:   expiresAt,
     }
 
-    if err := s.repo.Create(url); err != nil {
+    if err := s.repo.Create(ctx, url); err != nil {
         return nil, apperror.Internal("could not create short url")
     }
-
     return url, nil
 }
 
-func (s *URLService) GetByShortCode(code string) (*model.URL, *apperror.AppError) {
-    url, err := s.repo.FindByShortCode(code)
+func (s *URLService) GetByShortCode(
+    ctx context.Context,
+    code string) (*model.URL, *apperror.AppError) {
+
+    url, err := s.repo.FindByShortCode(ctx, code)
     if err != nil {
         return nil, apperror.Internal("something went wrong")
     }
@@ -50,12 +58,15 @@ func (s *URLService) GetByShortCode(code string) (*model.URL, *apperror.AppError
         return nil, apperror.Gone("short url has expired")
     }
 
-    s.repo.IncrementClicks(url.ID)
+    s.repo.IncrementClicks(ctx, url.ID)
     return url, nil
 }
 
-func (s *URLService) GetUserLinks(userID string) ([]*model.URL, *apperror.AppError) {
-    urls, err := s.repo.FindByUserID(userID)
+func (s *URLService) GetUserLinks(
+    ctx context.Context,
+    userID string) ([]*model.URL, *apperror.AppError) {
+
+    urls, err := s.repo.FindByUserID(ctx, userID)
     if err != nil {
         return nil, apperror.Internal("could not fetch links")
     }

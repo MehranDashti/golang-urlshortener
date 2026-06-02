@@ -1,6 +1,7 @@
 package handler
 
 import (
+    "context"
     "net/http"
     "time"
 
@@ -10,9 +11,9 @@ import (
 )
 
 type AdminService interface {
-    GetAllLinks() ([]*model.URL, *apperror.AppError)
-    DeleteLink(id string) *apperror.AppError
-    GetAllUsers() ([]*model.User, *apperror.AppError)
+    GetAllLinks(ctx context.Context) ([]*model.URL, *apperror.AppError)
+    DeleteLink(ctx context.Context, id string) *apperror.AppError
+    GetAllUsers(ctx context.Context) ([]*model.User, *apperror.AppError)
 }
 
 type AdminHandler struct {
@@ -24,7 +25,7 @@ func NewAdminHandler(service AdminService) *AdminHandler {
 }
 
 func (h *AdminHandler) ListLinks(c *gin.Context) {
-    urls, appErr := h.service.GetAllLinks()
+    urls, appErr := h.service.GetAllLinks(c.Request.Context())
     if appErr != nil {
         respondError(c, appErr)
         return
@@ -39,8 +40,8 @@ func (h *AdminHandler) DeleteLink(c *gin.Context) {
         return
     }
 
-    if appErr := h.service.DeleteLink(id); appErr != nil {
-        respondError(c, appErr)
+    if appErr := h.service.DeleteLink(
+        c.Request.Context(), id); appErr != nil {
         return
     }
 
@@ -48,7 +49,7 @@ func (h *AdminHandler) DeleteLink(c *gin.Context) {
 }
 
 func (h *AdminHandler) ListUsers(c *gin.Context) {
-    users, appErr := h.service.GetAllUsers()
+    users, appErr := h.service.GetAllUsers(c.Request.Context())
     if appErr != nil {
         respondError(c, appErr)
         return

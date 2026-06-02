@@ -1,6 +1,8 @@
 package repository
 
 import (
+    "context"
+
     "gorm.io/gorm"
     "urlshortener/internal/model"
 )
@@ -13,21 +15,24 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
     return &UserRepository{db: db}
 }
 
-func (r *UserRepository) Create(user *model.User) error {
-    return r.db.Create(user).Error
+func (r *UserRepository) Create(
+    ctx context.Context, user *model.User) error {
+    return r.db.WithContext(ctx).Create(user).Error
 }
 
-func (r *UserRepository) FindByEmail(email string) (*model.User, error) {
+func (r *UserRepository) FindByEmail(
+    ctx context.Context, email string) (*model.User, error) {
     var user model.User
-    result := r.db.Where("email = ?", email).First(&user)
+    result := r.db.WithContext(ctx).
+        Where("email = ?", email).First(&user)
     if result.Error == gorm.ErrRecordNotFound {
         return nil, nil
     }
     return &user, result.Error
 }
 
-func (r *UserRepository) FindAll() ([]*model.User, error) {
+func (r *UserRepository) FindAll(
+    ctx context.Context) ([]*model.User, error) {
     var users []*model.User
-    result := r.db.Find(&users)
-    return users, result.Error
+    return users, r.db.WithContext(ctx).Find(&users).Error
 }

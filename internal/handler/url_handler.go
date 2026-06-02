@@ -1,6 +1,7 @@
 package handler
 
 import (
+    "context"
     "net/http"
     "time"
 
@@ -11,9 +12,12 @@ import (
 )
 
 type URLService interface {
-    ShortenURL(originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError)
-    GetByShortCode(code string) (*model.URL, *apperror.AppError)
-    GetUserLinks(userID string) ([]*model.URL, *apperror.AppError)
+    ShortenURL(ctx context.Context, originalURL string,
+        userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError)
+    GetByShortCode(ctx context.Context,
+        code string) (*model.URL, *apperror.AppError)
+    GetUserLinks(ctx context.Context,
+        userID string) ([]*model.URL, *apperror.AppError)
 }
 
 type URLHandler struct {
@@ -48,7 +52,12 @@ func (h *URLHandler) Shorten(c *gin.Context) {
         expiresAt = &t
     }
 
-    url, appErr := h.service.ShortenURL(req.URL, userID.(string), expiresAt)
+    url, appErr := h.service.ShortenURL(
+        c.Request.Context(), // ← pass request context
+        req.URL,
+        userID.(string),
+        expiresAt,
+    )
     if appErr != nil {
         respondError(c, appErr)
         return
@@ -64,7 +73,8 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 func (h *URLHandler) Redirect(c *gin.Context) {
     code := c.Param("code")
 
-    url, appErr := h.service.GetByShortCode(code)
+    url, appErr := h.service.GetByShortCode(
+        c.Request.Context(), code)
     if appErr != nil {
         respondError(c, appErr)
         return
@@ -79,8 +89,8 @@ func (h *URLHandler) ListLinks(c *gin.Context) {
         respondError(c, apperror.Unauthorized("not authenticated"))
         return
     }
-
-    urls, appErr := h.service.GetUserLinks(userID.(string))
+    urls, appErr := h.service.GetUserLinks(
+        c.Request.Context(), userID.(string))
     if appErr != nil {
         respondError(c, appErr)
         return
