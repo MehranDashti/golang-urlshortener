@@ -1,0 +1,8 @@
+# Don't copy these into the Docker build context
+.env
+.env.*
+.git
+.gitignore
+bin/
+*.md
+tests/

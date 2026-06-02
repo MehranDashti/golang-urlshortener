@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    env_file:
+      - .env.docker
+    restart: unless-stopped
+    networks:
+      - urlshortener
+
+networks:
+  urlshortener:
+    driver: bridge
