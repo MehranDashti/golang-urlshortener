@@ -67,3 +67,32 @@ func (r *URLRepository) DeleteByUserID(
         Where("user_id = ?", userID).
         Delete(&model.URL{}).Error
 }
+
+func (r *URLRepository) FindByUserIDPaginated(
+    ctx context.Context,
+    userID string,
+    params model.PaginationParams) ([]*model.URL, int64, error) {
+
+    var urls  []*model.URL
+    var total int64
+
+    // Count total matching records first
+    if err := r.db.WithContext(ctx).
+        Model(&model.URL{}).
+        Where("user_id = ?", userID).
+        Count(&total).Error; err != nil {
+        return nil, 0, err
+    }
+
+    // Fetch the page
+    if err := r.db.WithContext(ctx).
+        Where("user_id = ?", userID).
+        Offset(params.Offset()).
+        Limit(params.Limit).
+        Order("created_at DESC").
+        Find(&urls).Error; err != nil {
+        return nil, 0, err
+    }
+
+    return urls, total, nil
+}

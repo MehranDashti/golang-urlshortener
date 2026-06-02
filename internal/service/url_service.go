@@ -14,6 +14,8 @@ type URLRepository interface {
     FindByShortCode(ctx context.Context, code string) (*model.URL, error)
     IncrementClicks(ctx context.Context, id string) error
     FindByUserID(ctx context.Context, userID string) ([]*model.URL, error)
+    FindByUserIDPaginated(ctx context.Context, userID string,
+        params model.PaginationParams) ([]*model.URL, int64, error)
 }
 
 type URLService struct {
@@ -71,4 +73,19 @@ func (s *URLService) GetUserLinks(
         return nil, apperror.Internal("could not fetch links")
     }
     return urls, nil
+}
+
+func (s *URLService) GetUserLinksPaginated(
+    ctx context.Context,
+    userID string,
+    params model.PaginationParams) (*model.PaginatedResult, *apperror.AppError) {
+
+    urls, total, err := s.repo.FindByUserIDPaginated(
+        ctx, userID, params)
+    if err != nil {
+        return nil, apperror.Internal("could not fetch links")
+    }
+
+    result := model.NewPaginatedResult(urls, total, params)
+    return &result, nil
 }

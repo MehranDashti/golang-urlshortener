@@ -1,9 +1,12 @@
 package handler
 
 import (
+    "strconv"
+
     "github.com/gin-gonic/gin"
     "github.com/go-playground/validator/v10"
     "urlshortener/internal/apperror"
+    "urlshortener/internal/model"
 )
 
 var validate = validator.New()
@@ -39,4 +42,23 @@ func validationMessage(e validator.FieldError) string {
     default:
         return e.Field() + " is invalid"
     }
+}
+
+func parsePagination(c *gin.Context) (model.PaginationParams, *apperror.AppError) {
+    pageStr  := c.DefaultQuery("page", "1")
+    limitStr := c.DefaultQuery("limit", "10")
+
+    page, err := strconv.Atoi(pageStr)
+    if err != nil || page < 1 {
+        return model.PaginationParams{},
+            apperror.BadRequest("page must be a positive integer")
+    }
+
+    limit, err := strconv.Atoi(limitStr)
+    if err != nil || limit < 1 || limit > 100 {
+        return model.PaginationParams{},
+            apperror.BadRequest("limit must be between 1 and 100")
+    }
+
+    return model.PaginationParams{Page: page, Limit: limit}, nil
 }

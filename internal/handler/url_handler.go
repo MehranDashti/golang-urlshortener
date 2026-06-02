@@ -18,6 +18,8 @@ type URLService interface {
         code string) (*model.URL, *apperror.AppError)
     GetUserLinks(ctx context.Context,
         userID string) ([]*model.URL, *apperror.AppError)
+    GetUserLinksPaginated(ctx context.Context, userID string,
+        params model.PaginationParams) (*model.PaginatedResult, *apperror.AppError) // ← new
 }
 
 type URLHandler struct {
@@ -97,4 +99,28 @@ func (h *URLHandler) ListLinks(c *gin.Context) {
     }
 
     respondSuccess(c, http.StatusOK, "عملیات با موفقیت انجام شد", urls)
+}
+
+func (h *URLHandler) ListLinksPaginated(c *gin.Context) {
+    userID, exists := c.Get(middleware.UserIDKey)
+    if !exists {
+        respondError(c, apperror.Unauthorized("not authenticated"))
+        return
+    }
+
+    params, appErr := parsePagination(c)
+    if appErr != nil {
+        respondError(c, appErr)
+        return
+    }
+
+    result, appErr := h.service.GetUserLinksPaginated(
+        c.Request.Context(), userID.(string), params)
+    if appErr != nil {
+        respondError(c, appErr)
+        return
+    }
+
+    respondSuccess(c, http.StatusOK,
+        "عملیات با موفقیت انجام شد", result)
 }

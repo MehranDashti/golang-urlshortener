@@ -31,6 +31,7 @@ func Setup(
         {
             client.POST("/shorten", urlHandler.Shorten)
             client.GET("/links", urlHandler.ListLinks)
+            client.GET("/links/paginated", urlHandler.ListLinksPaginated)
         }
 
         // Admin routes — JWT + admin role required
