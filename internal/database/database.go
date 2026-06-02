@@ -1,24 +1,54 @@
 package database
 
 import (
-	"log"
+    "log/slog"
 
-	"gorm.io/driver/mysql"
+    "github.com/golang-migrate/migrate/v4"
+    "github.com/golang-migrate/migrate/v4/database/mysql"
+    _ "github.com/golang-migrate/migrate/v4/source/file" 
+    _ "github.com/go-sql-driver/mysql"                  
+    gormmysql "gorm.io/driver/mysql"
     "gorm.io/gorm"
-
-    "urlshortener/internal/model"
 )
 
 func Connect(dsn string) *gorm.DB {
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+    gormDB, err := gorm.Open(gormmysql.Open(dsn), &gorm.Config{})
     if err != nil {
-        log.Fatal("failed to connect to database: ", err)
+        panic("failed to connect to database: " + err.Error())
     }
 
-    err = db.AutoMigrate(&model.User{}, &model.URL{})
-    if err != nil {
-        log.Fatal("failed to migrate: ", err)
+    if err := runMigrations(gormDB, dsn); err != nil {
+        panic("failed to run migrations: " + err.Error())
     }
 
-    return db
+    return gormDB
+}
+
+func runMigrations(db *gorm.DB, dsn string) error {
+    sqlDB, err := db.DB()
+    if err != nil {
+        return err
+    }
+
+    driver, err := mysql.WithInstance(sqlDB, &mysql.Config{})
+    if err != nil {
+        return err
+    }
+
+    m, err := migrate.NewWithDatabaseInstance(
+        "file://migrations", // path to migration files
+        "mysql",
+        driver,
+    )
+    if err != nil {
+        return err
+    }
+
+    if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+        return err
+    }
+
+    version, _, _ := m.Version()
+    slog.Info("migrations applied", "version", version)
+    return nil
 }
