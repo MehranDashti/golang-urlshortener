@@ -2,6 +2,7 @@ package handler_test
 
 import (
     "bytes"
+    "context"
     "encoding/json"
     "net/http"
     "net/http/httptest"
@@ -18,21 +19,24 @@ import (
 )
 
 type mockURLService struct {
-    shortenFn        func(originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError)
-    getByShortCodeFn func(code string) (*model.URL, *apperror.AppError)
-    GetUserLinksFn func(userID string) ([]*model.URL, *apperror.AppError)
+    shortenFn        func(ctx context.Context, originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError)
+    getByShortCodeFn func(ctx context.Context, code string) (*model.URL, *apperror.AppError)
+    getUserLinksFn   func(ctx context.Context, userID string) ([]*model.URL, *apperror.AppError)
 }
 
-func (m *mockURLService) ShortenURL(originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError) {
-    return m.shortenFn(originalURL, userID, expiresAt)
+func (m *mockURLService) ShortenURL(ctx context.Context, originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError) {
+    return m.shortenFn(ctx, originalURL, userID, expiresAt)
 }
 
-func (m *mockURLService) GetByShortCode(code string) (*model.URL, *apperror.AppError) {
-    return m.getByShortCodeFn(code)
+func (m *mockURLService) GetByShortCode(ctx context.Context, code string) (*model.URL, *apperror.AppError) {
+    return m.getByShortCodeFn(ctx, code)
 }
 
-func (m *mockURLService) GetUserLinks(userID string) ([]*model.URL, *apperror.AppError) {
-    return m.GetUserLinksFn(userID)
+func (m *mockURLService) GetUserLinks(ctx context.Context, userID string) ([]*model.URL, *apperror.AppError) {
+    if m.getUserLinksFn != nil {
+        return m.getUserLinksFn(ctx, userID)
+    }
+    return nil, nil
 }
 
 func setupRouter(svc handler.URLService) *gin.Engine {
@@ -54,11 +58,8 @@ func setupRouter(svc handler.URLService) *gin.Engine {
 
 func TestShorten_Success(t *testing.T) {
     mock := &mockURLService{
-        shortenFn: func(originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError) {
-            return &model.URL{
-                OriginalURL: originalURL,
-                ShortCode:   "abc123",
-            }, nil
+        shortenFn: func(ctx context.Context, originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError) {
+            return &model.URL{OriginalURL: originalURL, ShortCode: "abc123"}, nil
         },
     }
 
@@ -107,7 +108,7 @@ func TestShorten_MissingURL(t *testing.T) {
 
 func TestShorten_RepoError(t *testing.T) {
     mock := &mockURLService{
-        shortenFn: func(originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError) {
+        shortenFn: func(ctx context.Context, originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError) {
             return nil, apperror.Internal("could not create short url")
         },
     }
@@ -126,9 +127,10 @@ func TestShorten_RepoError(t *testing.T) {
 
 // --- Tests for GET /:code ---
 
+
 func TestRedirect_Success(t *testing.T) {
     mock := &mockURLService{
-        getByShortCodeFn: func(code string) (*model.URL, *apperror.AppError) {
+        getByShortCodeFn: func(ctx context.Context, code string) (*model.URL, *apperror.AppError) {
             return &model.URL{
                 ID:          "some-uuid",
                 ShortCode:   code,
@@ -150,7 +152,7 @@ func TestRedirect_Success(t *testing.T) {
 
 func TestRedirect_NotFound(t *testing.T) {
     mock := &mockURLService{
-        getByShortCodeFn: func(code string) (*model.URL, *apperror.AppError) {
+        getByShortCodeFn: func(ctx context.Context, code string) (*model.URL, *apperror.AppError) {
             return nil, apperror.NotFound("short url not found")
         },
     }
