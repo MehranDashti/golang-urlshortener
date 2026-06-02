@@ -36,3 +36,9 @@ func (r *UserRepository) FindAll(
     var users []*model.User
     return users, r.db.WithContext(ctx).Find(&users).Error
 }
+
+func (r *UserRepository) Delete(
+    ctx context.Context, id string) error {
+    return r.db.WithContext(ctx).
+        Delete(&model.User{}, "id = ?", id).Error
+}

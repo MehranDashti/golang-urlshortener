@@ -2,6 +2,7 @@ package service
 
 import (
     "context"
+    "log/slog"
     
     "urlshortener/internal/apperror"
     "urlshortener/internal/model"
@@ -43,8 +44,7 @@ func (s *AuthService) Signup(
         return nil, apperror.BadRequest("email already in use")
     }
 
-    hashed, err := bcrypt.GenerateFromPassword(
-        []byte(password), 12)
+    hashed, err := bcrypt.GenerateFromPassword([]byte(password), 12)
     if err != nil {
         return nil, apperror.Internal("could not hash password")
     }
@@ -57,6 +57,11 @@ func (s *AuthService) Signup(
     if err := s.repo.Create(ctx, user); err != nil {
         return nil, apperror.Internal("could not create user")
     }
+
+    go func(email string) {
+        slog.Info("welcome email sent", "email", email)
+    }(user.Email)
+
     return user, nil
 }
 

@@ -60,3 +60,10 @@ func (r *URLRepository) Delete(
     return r.db.WithContext(ctx).
         Delete(&model.URL{}, "id = ?", id).Error
 }
+
+func (r *URLRepository) DeleteByUserID(
+    ctx context.Context, userID string) error {
+    return r.db.WithContext(ctx).
+        Where("user_id = ?", userID).
+        Delete(&model.URL{}).Error
+}

@@ -1,6 +1,7 @@
 package service
 
 import (
+    "sync"
     "context"
 
     "urlshortener/internal/apperror"
@@ -10,10 +11,12 @@ import (
 type AdminURLRepository interface {
     FindAll(ctx context.Context) ([]*model.URL, error)
     Delete(ctx context.Context, id string) error
+    DeleteByUserID(ctx context.Context, userID string) error
 }
 
 type AdminUserRepository interface {
     FindAll(ctx context.Context) ([]*model.User, error)
+    Delete(ctx context.Context, id string) error 
 }
 
 // ← this was missing
@@ -51,4 +54,46 @@ func (s *AdminService) GetAllUsers(
         return nil, apperror.Internal("could not fetch users")
     }
     return users, nil
+}
+
+
+func (s *AdminService) DeleteUser(
+    ctx context.Context, userID string) *apperror.AppError {
+
+    // Run both deletes concurrently with WaitGroup
+    var wg sync.WaitGroup
+    // errCh is a channel — Go's way to communicate between goroutines
+    // buffer of 2 means it can hold 2 errors without blocking
+    errCh := make(chan error, 2)
+
+    // Delete all user's links
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        if err := s.urlRepo.DeleteByUserID(ctx, userID); err != nil {
+            errCh <- err // send error to channel
+        }
+    }()
+
+    // Delete the user account
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        if err := s.userRepo.Delete(ctx, userID); err != nil {
+            errCh <- err
+        }
+    }()
+
+    // Wait for both goroutines to finish
+    wg.Wait()
+    close(errCh) // close channel so we can range over it
+
+    // Check if any errors occurred
+    for err := range errCh {
+        if err != nil {
+            return apperror.Internal("could not delete user")
+        }
+    }
+
+    return nil
 }

@@ -40,6 +40,7 @@ func Setup(
             admin.GET("/links", adminHandler.ListLinks)
             admin.DELETE("/links/:id", adminHandler.DeleteLink)
             admin.GET("/users", adminHandler.ListUsers)
+            admin.DELETE("/users/:id", adminHandler.DeleteUser)
         }
     }
 

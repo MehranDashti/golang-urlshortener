@@ -14,6 +14,7 @@ type AdminService interface {
     GetAllLinks(ctx context.Context) ([]*model.URL, *apperror.AppError)
     DeleteLink(ctx context.Context, id string) *apperror.AppError
     GetAllUsers(ctx context.Context) ([]*model.User, *apperror.AppError)
+    DeleteUser(ctx context.Context, id string) *apperror.AppError
 }
 
 type AdminHandler struct {
@@ -73,4 +74,21 @@ func (h *AdminHandler) ListUsers(c *gin.Context) {
     }
 
     respondSuccess(c, http.StatusOK, "عملیات با موفقیت انجام شد", result)
+}
+
+func (h *AdminHandler) DeleteUser(c *gin.Context) {
+    id := c.Param("id")
+    if id == "" {
+        respondError(c, apperror.BadRequest("id is required"))
+        return
+    }
+
+    if appErr := h.service.DeleteUser(
+        c.Request.Context(), id); appErr != nil {
+        respondError(c, appErr)
+        return
+    }
+
+    respondSuccess(c, http.StatusOK,
+        "کاربر با موفقیت حذف شد", nil)
 }
