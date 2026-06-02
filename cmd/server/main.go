@@ -2,6 +2,7 @@ package main
 
 import (
     "log"
+    "time"
 
     "urlshortener/internal/config"
     "urlshortener/internal/database"
@@ -41,7 +42,11 @@ func main() {
     // Auth middleware
     authMiddleware := middleware.Auth(tokenManager)
 
-    r := router.Setup(urlHandler, authHandler, adminHandler, authMiddleware)
+    // 60 requests per minute per IP
+    rateLimiter := middleware.NewRateLimiter(60, time.Minute)
+    
+    r := router.Setup(urlHandler, authHandler, adminHandler,
+        authMiddleware, rateLimiter.Middleware())
 
     log.Println("server starting on port", cfg.Port)
     if err := r.Run(":" + cfg.Port); err != nil {

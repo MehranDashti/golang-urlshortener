@@ -11,10 +11,12 @@ func Setup(
     authHandler *handler.AuthHandler,
     adminHandler *handler.AdminHandler,
     authMiddleware gin.HandlerFunc,
+    rateLimiter   gin.HandlerFunc, 
 ) *gin.Engine {
     r := gin.New()
     r.Use(middleware.Logger())
     r.Use(gin.Recovery())
+    r.Use(rateLimiter) 
 
     // All routes live under /api/v1
     api := r.Group("/api/v1")

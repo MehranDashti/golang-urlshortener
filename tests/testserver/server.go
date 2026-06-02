@@ -66,8 +66,11 @@ func New() *TestServer {
     adminHandler := handler.NewAdminHandler(adminService)
 
     authMiddleware := middleware.Auth(tokenManager)
+    // High limit — tests never hit rate limit
+    rateLimiter := middleware.NewRateLimiter(10000, time.Minute)
 
-    r := router.Setup(urlHandler, authHandler, adminHandler, authMiddleware)
+    r := router.Setup(urlHandler, authHandler, adminHandler,
+        authMiddleware, rateLimiter.Middleware())
 
     return &TestServer{Router: r, DB: db}
 }
