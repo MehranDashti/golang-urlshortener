@@ -31,7 +31,7 @@ func (h *AdminHandler) ListLinks(c *gin.Context) {
         respondError(c, appErr)
         return
     }
-    respondSuccess(c, http.StatusOK, "عملیات با موفقیت انجام شد", urls)
+    respondData(c, http.StatusOK, "عملیات با موفقیت انجام شد", urls)
 }
 
 func (h *AdminHandler) DeleteLink(c *gin.Context) {
@@ -46,7 +46,7 @@ func (h *AdminHandler) DeleteLink(c *gin.Context) {
         return
     }
 
-    respondSuccess(c, http.StatusOK, "لینک با موفقیت حذف شد", nil)
+    respondData[*struct{}](c, http.StatusOK, "لینک با موفقیت حذف شد", nil)
 }
 
 func (h *AdminHandler) ListUsers(c *gin.Context) {
@@ -73,7 +73,7 @@ func (h *AdminHandler) ListUsers(c *gin.Context) {
         }
     }
 
-    respondSuccess(c, http.StatusOK, "عملیات با موفقیت انجام شد", result)
+    respondData(c, http.StatusOK, "عملیات با موفقیت انجام شد", result)
 }
 
 func (h *AdminHandler) DeleteUser(c *gin.Context) {
@@ -89,6 +89,5 @@ func (h *AdminHandler) DeleteUser(c *gin.Context) {
         return
     }
 
-    respondSuccess(c, http.StatusOK,
-        "کاربر با موفقیت حذف شد", nil)
+    respondData[*struct{}](c, http.StatusOK, "کاربر با موفقیت حذف شد", nil)
 }

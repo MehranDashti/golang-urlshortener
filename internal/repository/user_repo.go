@@ -29,28 +29,13 @@ func (r *UserRepository) Create(
 func (r *UserRepository) FindByEmail(
     ctx context.Context,
     email string) (*model.User, error) {
-    var user model.User
-    result := r.db.WithContext(ctx).
-        Where("email = ?", email).First(&user)
-    if result.Error == gorm.ErrRecordNotFound {
-        return nil, nil
-    }
-    if result.Error != nil {
-        return nil, fmt.Errorf(
-            "UserRepository.FindByEmail %s: %w", email, result.Error)
-    }
-    return &user, nil
+    return findOne[model.User](ctx, r.db,
+        "email = ?", email)
 }
 
 func (r *UserRepository) FindAll(
     ctx context.Context) ([]*model.User, error) {
-    var users []*model.User
-    if err := r.db.WithContext(ctx).
-        Find(&users).Error; err != nil {
-        return nil, fmt.Errorf(
-            "UserRepository.FindAll: %w", err)
-    }
-    return users, nil
+    return findAll[model.User](ctx, r.db, "")
 }
 
 func (r *UserRepository) Delete(

@@ -27,17 +27,8 @@ func (r *URLRepository) Create(
 func (r *URLRepository) FindByShortCode(
     ctx context.Context,
     code string) (*model.URL, error) {
-    var url model.URL
-    result := r.db.WithContext(ctx).
-        Where("short_code = ?", code).First(&url)
-    if result.Error == gorm.ErrRecordNotFound {
-        return nil, nil
-    }
-    if result.Error != nil {
-        return nil, fmt.Errorf(
-            "URLRepository.FindByShortCode %s: %w", code, result.Error)
-    }
-    return &url, nil
+    return findOne[model.URL](ctx, r.db,
+        "short_code = ?", code)
 }
 
 func (r *URLRepository) IncrementClicks(
@@ -97,13 +88,7 @@ func (r *URLRepository) FindByUserIDPaginated(
 
 func (r *URLRepository) FindAll(
     ctx context.Context) ([]*model.URL, error) {
-    var urls []*model.URL
-    if err := r.db.WithContext(ctx).
-        Find(&urls).Error; err != nil {
-        return nil, fmt.Errorf(
-            "URLRepository.FindAll: %w", err)
-    }
-    return urls, nil
+    return findAll[model.URL](ctx, r.db, "")
 }
 
 func (r *URLRepository) Delete(

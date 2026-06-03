@@ -19,7 +19,7 @@ type URLService interface {
     GetUserLinks(ctx context.Context,
         userID string) ([]*model.URL, *apperror.AppError)
     GetUserLinksPaginated(ctx context.Context, userID string,
-        params model.PaginationParams) (*model.PaginatedResult, *apperror.AppError) // ← new
+        params model.PaginationParams) (*model.PaginatedResult[*model.URL], *apperror.AppError)
 }
 
 type URLHandler struct {
@@ -65,7 +65,7 @@ func (h *URLHandler) Shorten(c *gin.Context) {
         return
     }
 
-    respondSuccess(c, http.StatusCreated, "لینک کوتاه با موفقیت ساخته شد", gin.H{
+    respondData(c, http.StatusCreated, "لینک کوتاه با موفقیت ساخته شد", gin.H{
         "short_url":    h.baseURL + "/" + url.ShortCode,
         "short_code":   url.ShortCode,
         "original_url": url.OriginalURL,
@@ -98,7 +98,7 @@ func (h *URLHandler) ListLinks(c *gin.Context) {
         return
     }
 
-    respondSuccess(c, http.StatusOK, "عملیات با موفقیت انجام شد", urls)
+    respondData(c, http.StatusOK, "عملیات با موفقیت انجام شد", urls)
 }
 
 func (h *URLHandler) ListLinksPaginated(c *gin.Context) {
@@ -121,6 +121,6 @@ func (h *URLHandler) ListLinksPaginated(c *gin.Context) {
         return
     }
 
-    respondSuccess(c, http.StatusOK,
+    respondData(c, http.StatusOK,
         "عملیات با موفقیت انجام شد", result)
 }

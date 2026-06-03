@@ -111,12 +111,15 @@ func (s *URLService) GetUserLinks(
 func (s *URLService) GetUserLinksPaginated(
     ctx context.Context,
     userID string,
-    params model.PaginationParams) (*model.PaginatedResult, *apperror.AppError) {
+    params model.PaginationParams) (*model.PaginatedResult[*model.URL], *apperror.AppError) {
 
     urls, total, err := s.repo.FindByUserIDPaginated(
         ctx, userID, params)
     if err != nil {
-        return nil, apperror.InternalWithErr("could not fetch links", err)
+        slog.Error("GetUserLinksPaginated failed",
+            "error", err, "userID", userID)
+        return nil, apperror.InternalWithErr(
+            "could not fetch links", err)
     }
 
     result := model.NewPaginatedResult(urls, total, params)

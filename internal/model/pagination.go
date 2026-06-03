@@ -1,39 +1,37 @@
 package model
 
-// PaginationParams carries validated page + limit from the request
+// PaginationParams carries validated page + limit from the request.
 type PaginationParams struct {
     Page  int
     Limit int
-    // Offset is calculated — not from the request
-    // Page 1, Limit 10 → Offset 0
-    // Page 2, Limit 10 → Offset 10
-    // Page 3, Limit 10 → Offset 20
 }
 
 func (p *PaginationParams) Offset() int {
     return (p.Page - 1) * p.Limit
 }
 
-// PaginatedResult is the standard paginated response shape
-type PaginatedResult struct {
-    Data       interface{} `json:"data"`
-    Total      int64       `json:"total"`
-    Page       int         `json:"page"`
-    Limit      int         `json:"limit"`
-    TotalPages int         `json:"total_pages"`
+// PaginatedResult is generic — T is the item type.
+// Caller specifies: PaginatedResult[*URL] or PaginatedResult[*User]
+type PaginatedResult[T any] struct {
+    Data       []T   `json:"data"`
+    Total      int64 `json:"total"`
+    Page       int   `json:"page"`
+    Limit      int   `json:"limit"`
+    TotalPages int   `json:"total_pages"`
 }
 
-func NewPaginatedResult(
-    data interface{},
+// NewPaginatedResult constructs a result — T inferred from data slice.
+func NewPaginatedResult[T any](
+    data []T,
     total int64,
-    params PaginationParams) PaginatedResult {
+    params PaginationParams) PaginatedResult[T] {
 
     totalPages := int(total) / params.Limit
     if int(total)%params.Limit != 0 {
-        totalPages++ // round up
+        totalPages++
     }
 
-    return PaginatedResult{
+    return PaginatedResult[T]{
         Data:       data,
         Total:      total,
         Page:       params.Page,

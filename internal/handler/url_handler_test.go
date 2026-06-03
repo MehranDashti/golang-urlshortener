@@ -19,10 +19,10 @@ import (
 )
 
 type mockURLService struct {
-    shortenFn                func(ctx context.Context, originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError)
-    getByShortCodeFn         func(ctx context.Context, code string) (*model.URL, *apperror.AppError)
-    getUserLinksFn           func(ctx context.Context, userID string) ([]*model.URL, *apperror.AppError)
-    getUserLinksPaginatedFn  func(ctx context.Context, userID string, params model.PaginationParams) (*model.PaginatedResult, *apperror.AppError) // ← add
+    shortenFn               func(ctx context.Context, originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError)
+    getByShortCodeFn        func(ctx context.Context, code string) (*model.URL, *apperror.AppError)
+    getUserLinksFn          func(ctx context.Context, userID string) ([]*model.URL, *apperror.AppError)
+    getUserLinksPaginatedFn func(ctx context.Context, userID string, params model.PaginationParams) (*model.PaginatedResult[*model.URL], *apperror.AppError)
 }
 
 func (m *mockURLService) ShortenURL(ctx context.Context, originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError) {
@@ -40,7 +40,7 @@ func (m *mockURLService) GetUserLinks(ctx context.Context, userID string) ([]*mo
     return nil, nil
 }
 
-func (m *mockURLService) GetUserLinksPaginated(ctx context.Context, userID string, params model.PaginationParams) (*model.PaginatedResult, *apperror.AppError) {
+func (m *mockURLService) GetUserLinksPaginated(ctx context.Context, userID string, params model.PaginationParams) (*model.PaginatedResult[*model.URL], *apperror.AppError) {
     if m.getUserLinksPaginatedFn != nil {
         return m.getUserLinksPaginatedFn(ctx, userID, params)
     }

@@ -40,7 +40,7 @@ func (h *AuthHandler) Signup(c *gin.Context) {
         return
     }
 
-    respondSuccess(c, http.StatusCreated, "حساب کاربری با موفقیت ساخته شد", gin.H{
+    respondData(c, http.StatusCreated, "حساب کاربری با موفقیت ساخته شد", gin.H{
         "id":    user.ID,
         "email": user.Email,
     })
@@ -60,7 +60,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
         return
     }
 
-    respondSuccess(c, http.StatusOK, "ورود با موفقیت انجام شد", gin.H{
+    respondData(c, http.StatusOK, "ورود با موفقیت انجام شد", gin.H{
         "access_token":  pair.AccessToken,
         "refresh_token": pair.RefreshToken,
     })
@@ -81,7 +81,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
         return
     }
 
-    respondSuccess(c, http.StatusOK, "توکن با موفقیت تجدید شد", gin.H{
+    respondData(c, http.StatusOK, "توکن با موفقیت تجدید شد", gin.H{
         "access_token":  pair.AccessToken,
         "refresh_token": pair.RefreshToken,
     })
