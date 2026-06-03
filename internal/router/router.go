@@ -2,6 +2,7 @@ package router
 
 import (
     "net/http"
+    "net/http/pprof"
     "runtime"
     "time"
     
@@ -59,17 +60,36 @@ func Setup(
         }
     }
     if gin.Mode() == gin.DebugMode {
-        api.GET("/debug/goroutines", func(c *gin.Context) {
-            buf := make([]byte, 1<<20)
-            n := runtime.Stack(buf, true)
-            c.Data(http.StatusOK, "text/plain", buf[:n])
-        })
+        debug := api.Group("/debug")
+        {
+            // Goroutine count
+            debug.GET("/goroutines",
+                func(c *gin.Context) {
+                    c.JSON(http.StatusOK, gin.H{
+                        "goroutines": runtime.NumGoroutine(),
+                    })
+                })
 
-        api.GET("/debug/goroutine-count", func(c *gin.Context) {
-            c.JSON(http.StatusOK, gin.H{
-                "goroutines": runtime.NumGoroutine(),
-            })
-        })
+            // pprof endpoints — standard Go profiling
+            debug.GET("/pprof/",
+                gin.WrapF(pprof.Index))
+            debug.GET("/pprof/cmdline",
+                gin.WrapF(pprof.Cmdline))
+            debug.GET("/pprof/profile",
+                gin.WrapF(pprof.Profile))
+            debug.GET("/pprof/symbol",
+                gin.WrapF(pprof.Symbol))
+            debug.GET("/pprof/trace",
+                gin.WrapF(pprof.Trace))
+            debug.GET("/pprof/heap",
+                gin.WrapH(pprof.Handler("heap")))
+            debug.GET("/pprof/goroutine",
+                gin.WrapH(pprof.Handler("goroutine")))
+            debug.GET("/pprof/block",
+                gin.WrapH(pprof.Handler("block")))
+            debug.GET("/pprof/mutex",
+                gin.WrapH(pprof.Handler("mutex")))
+        }
     }
 
     return r

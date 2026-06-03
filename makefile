@@ -15,10 +15,10 @@ DB_URL=mysql://$(DB_USER):$(DB_PASS)@tcp($(DB_HOST):$(DB_PORT))/$(DB_NAME)
 
 # ── Development ───────────────────────────────────────────────────
 run:
-	go run cmd/server/main.go
+	go run ./cmd/server/...
 
 build:
-	CGO_ENABLED=0 go build -ldflags="-s -w" -o $(BINARY) cmd/server/main.go
+	CGO_ENABLED=0 go build -ldflags="-s -w" -o $(BINARY) ./cmd/server/...
 
 test:
 	go test ./... -v
