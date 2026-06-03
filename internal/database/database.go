@@ -2,26 +2,41 @@ package database
 
 import (
     "log/slog"
+    "sync"
 
     "github.com/golang-migrate/migrate/v4"
     "github.com/golang-migrate/migrate/v4/database/mysql"
-    _ "github.com/golang-migrate/migrate/v4/source/file" 
-    _ "github.com/go-sql-driver/mysql"                  
+    _ "github.com/golang-migrate/migrate/v4/source/file"
+    _ "github.com/go-sql-driver/mysql"
     gormmysql "gorm.io/driver/mysql"
     "gorm.io/gorm"
+    "gorm.io/gorm/logger"
 )
 
+var (
+    db   *gorm.DB
+    once sync.Once
+)
+
+// Connect opens the DB and runs migrations.
+// sync.Once ensures this is safe to call from multiple places —
+// the actual connection is established only on the first call.
 func Connect(dsn string) *gorm.DB {
-    gormDB, err := gorm.Open(gormmysql.Open(dsn), &gorm.Config{})
-    if err != nil {
-        panic("failed to connect to database: " + err.Error())
-    }
+    once.Do(func() {
+        gormDB, err := gorm.Open(gormmysql.Open(dsn), &gorm.Config{
+            Logger: logger.Default.LogMode(logger.Silent),
+        })
+        if err != nil {
+            panic("failed to connect to database: " + err.Error())
+        }
 
-    if err := runMigrations(gormDB, dsn); err != nil {
-        panic("failed to run migrations: " + err.Error())
-    }
+        if err := runMigrations(gormDB, dsn); err != nil {
+            panic("failed to run migrations: " + err.Error())
+        }
 
-    return gormDB
+        db = gormDB
+    })
+    return db
 }
 
 func runMigrations(db *gorm.DB, dsn string) error {
@@ -36,7 +51,7 @@ func runMigrations(db *gorm.DB, dsn string) error {
     }
 
     m, err := migrate.NewWithDatabaseInstance(
-        "file://migrations", // path to migration files
+        "file://migrations",
         "mysql",
         driver,
     )

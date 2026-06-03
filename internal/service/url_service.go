@@ -4,6 +4,7 @@ import (
     "log/slog"
     "context"
     "time"
+    "sync"
 
     "urlshortener/internal/apperror"
     "urlshortener/internal/model"
@@ -22,26 +23,39 @@ type URLRepository interface {
 type URLService struct {
     repo URLRepository
     clickCh   chan string
+    recentIDs sync.Map
 }
-
 func NewURLService(repo URLRepository) *URLService {
     s := &URLService{
         repo:    repo,
-        clickCh: make(chan string, 100), // buffered — non-blocking
+        clickCh: make(chan string, 100),
     }
-    go s.clickWorker() // start background worker
+    go s.clickWorker()
     return s
 }
 
-// clickWorker drains the click channel in the background
 func (s *URLService) clickWorker() {
     for id := range s.clickCh {
-        // context.Background() — not tied to any request
         ctx, cancel := context.WithTimeout(
             context.Background(), 5*time.Second)
         s.repo.IncrementClicks(ctx, id)
         cancel()
+
+        // Store the click time — sync.Map is safe for concurrent use
+        s.recentIDs.Store(id, time.Now())
     }
+}
+
+// cleanRecentIDs removes entries older than 1 minute
+// Called periodically — prevents recentIDs growing forever
+func (s *URLService) cleanRecentIDs() {
+    s.recentIDs.Range(func(key, value interface{}) bool {
+        t := value.(time.Time)
+        if time.Since(t) > time.Minute {
+            s.recentIDs.Delete(key)
+        }
+        return true // continue ranging
+    })
 }
 
 func (s *URLService) Close() {
@@ -84,14 +98,13 @@ func (s *URLService) GetByShortCode(
 
     // Non-blocking click increment using select
     // If channel is full (100 pending) — drop the click rather than block
-    select {
-    case s.clickCh <- url.ID:
-        // sent to worker — will be processed asynchronously
-    default:
-        // channel full — skip this click increment
-        // better to lose a click than to slow down a redirect
-        slog.Warn("click channel full, dropping increment",
-            "url_id", url.ID)
+    if _, alreadyClicked := s.recentIDs.Load(url.ID); !alreadyClicked {
+        select {
+        case s.clickCh <- url.ID:
+        default:
+            slog.Warn("click channel full, dropping increment",
+                "url_id", url.ID)
+        }
     }
 
     return url, nil
