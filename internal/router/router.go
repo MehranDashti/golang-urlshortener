@@ -35,6 +35,8 @@ func Setup(
         client.Use(authMiddleware)
         {
             client.POST("/shorten", urlHandler.Shorten)
+            client.POST("/shorten/bulk", urlHandler.BulkShorten)
+
             client.GET("/links", urlHandler.ListLinks)
             client.GET("/links/paginated", urlHandler.ListLinksPaginated)
         }

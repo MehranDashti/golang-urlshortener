@@ -1,12 +1,14 @@
 package service
 
 import (
+    "fmt"
     "log/slog"
     "context"
     "time"
     "sync"
-
+    
     "urlshortener/internal/apperror"
+    "urlshortener/internal/worker"
     "urlshortener/internal/model"
     "urlshortener/internal/util"
 )
@@ -25,6 +27,14 @@ type URLService struct {
     clickCh   chan string
     recentIDs sync.Map
 }
+
+// BulkShortenResult holds the result of one bulk shorten operation
+type BulkShortenResult struct {
+    OriginalURL string
+    ShortCode   string
+    Error       string
+}
+
 func NewURLService(repo URLRepository) *URLService {
     s := &URLService{
         repo:    repo,
@@ -137,4 +147,65 @@ func (s *URLService) GetUserLinksPaginated(
 
     result := model.NewPaginatedResult(urls, total, params)
     return &result, nil
+}
+
+// BulkShorten shortens multiple URLs concurrently using a worker pool.
+// numWorkers controls how many DB writes happen simultaneously.
+func (s *URLService) BulkShorten(
+    ctx context.Context,
+    urls []string,
+    userID string,
+    numWorkers int,
+) []BulkShortenResult {
+
+    // Create pool — T=string (URL), R=BulkShortenResult
+    pool := worker.NewPool[string, BulkShortenResult](
+        numWorkers,
+        len(urls), // buffer = number of jobs
+        func(ctx context.Context,
+            job worker.Job[string]) (BulkShortenResult, error) {
+
+            url := &model.URL{
+                UserID:      userID,
+                OriginalURL: job.Payload,
+                ShortCode:   util.GenerateShortCode(),
+            }
+
+            if err := s.repo.Create(ctx, url); err != nil {
+                return BulkShortenResult{
+                    OriginalURL: job.Payload,
+                    Error:       "could not create short url",
+                }, err
+            }
+
+            return BulkShortenResult{
+                OriginalURL: job.Payload,
+                ShortCode:   url.ShortCode,
+            }, nil
+        },
+    )
+
+    // Start workers
+    pool.Start(ctx)
+
+    // Submit all jobs
+    for i, url := range urls {
+        pool.Submit(worker.Job[string]{
+            ID:      fmt.Sprintf("job-%d", i),
+            Payload: url,
+        })
+    }
+
+    // Signal no more jobs — workers will exit after draining
+    // Run in goroutine because Close() blocks until workers finish
+    // but we also need to read results — deadlock if we block here
+    go pool.Close()
+
+    // Collect results
+    results := make([]BulkShortenResult, 0, len(urls))
+    for result := range pool.Results() {
+        results = append(results, result.Value)
+    }
+
+    return results
 }

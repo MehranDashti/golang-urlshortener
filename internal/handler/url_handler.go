@@ -9,6 +9,7 @@ import (
     "urlshortener/internal/apperror"
     "urlshortener/internal/middleware"
     "urlshortener/internal/model"
+    "urlshortener/internal/service"
 )
 
 type URLService interface {
@@ -20,6 +21,8 @@ type URLService interface {
         userID string) ([]*model.URL, *apperror.AppError)
     GetUserLinksPaginated(ctx context.Context, userID string,
         params model.PaginationParams) (*model.PaginatedResult[*model.URL], *apperror.AppError)
+    BulkShorten(ctx context.Context, urls []string,
+        userID string, numWorkers int) []service.BulkShortenResult
 }
 
 type URLHandler struct {
@@ -123,4 +126,37 @@ func (h *URLHandler) ListLinksPaginated(c *gin.Context) {
 
     respondData(c, http.StatusOK,
         "عملیات با موفقیت انجام شد", result)
+}
+
+func (h *URLHandler) BulkShorten(c *gin.Context) {
+    var body struct {
+        URLs       []string `json:"urls"       validate:"required,min=1,max=100,dive,url"`
+        NumWorkers int      `json:"num_workers"`
+    }
+
+    if appErr := bindAndValidate(c, &body); appErr != nil {
+        respondError(c, appErr)
+        return
+    }
+
+    // Default to 5 workers if not specified
+    if body.NumWorkers <= 0 || body.NumWorkers > 20 {
+        body.NumWorkers = 5
+    }
+
+    userID, exists := c.Get(middleware.UserIDKey)
+    if !exists {
+        respondError(c, apperror.Unauthorized("not authenticated"))
+        return
+    }
+
+    results := h.service.BulkShorten(
+        c.Request.Context(),
+        body.URLs,
+        userID.(string),
+        body.NumWorkers,
+    )
+
+    respondSuccess(c, http.StatusCreated,
+        "لینک‌ها با موفقیت ساخته شدند", results)
 }
