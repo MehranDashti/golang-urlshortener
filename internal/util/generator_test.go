@@ -56,3 +56,23 @@ func TestGenerateShortCode_Uniqueness(t *testing.T) {
         seen[code] = true
     }
 }
+
+// BenchmarkGenerateShortCode measures raw generation speed.
+// Run: go test -bench=BenchmarkGenerate -benchmem ./internal/util/...
+func BenchmarkGenerateShortCode(b *testing.B) {
+    b.ReportAllocs() // report memory allocations
+    for i := 0; i < b.N; i++ {
+        util.GenerateShortCode()
+    }
+}
+
+// BenchmarkGenerateShortCode_Parallel measures concurrent performance.
+// Simulates multiple goroutines generating codes simultaneously.
+func BenchmarkGenerateShortCode_Parallel(b *testing.B) {
+    b.ReportAllocs()
+    b.RunParallel(func(pb *testing.PB) {
+        for pb.Next() {
+            util.GenerateShortCode()
+        }
+    })
+}

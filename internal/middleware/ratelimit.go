@@ -117,3 +117,8 @@ func (rl *RateLimiter) Middleware() gin.HandlerFunc {
         c.Next()
     }
 }
+
+// Allow is exported for benchmarks and testing.
+func (rl *RateLimiter) Allow(ip string) bool {
+    return rl.allow(ip)
+}

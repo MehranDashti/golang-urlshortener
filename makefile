@@ -26,6 +26,30 @@ test:
 test-short:
 	go test ./internal/... -v
 
+test-v:
+	go test ./... -v
+
+test-race:
+	go test -race ./...
+
+test-race-v:
+	go test -race ./... -v
+
+bench:
+	go test -bench=. -benchmem ./...
+
+bench-util:
+	go test -bench=. -benchmem ./internal/util/...
+
+bench-middleware:
+	go test -bench=. -benchmem ./internal/middleware/...
+
+bench-race:
+	go test -bench=. -benchmem -race ./...
+
+bench-race:
+	go test -bench=. -benchmem -race ./internal/middleware/...
+	
 clean:
 	rm -rf bin/
 
