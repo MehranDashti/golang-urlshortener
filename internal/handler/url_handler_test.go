@@ -1,6 +1,8 @@
 package handler_test
 
 import (
+    "io"
+    "urlshortener/internal/service"
     "bytes"
     "context"
     "encoding/json"
@@ -31,6 +33,22 @@ type mockURLService struct {
     getByShortCodeFn        func(ctx context.Context, code string) (*model.URL, *apperror.AppError)
     getUserLinksFn          func(ctx context.Context, userID string) ([]*model.URL, *apperror.AppError)
     getUserLinksPaginatedFn func(ctx context.Context, userID string, params model.PaginationParams) (*model.PaginatedResult[*model.URL], *apperror.AppError)
+    bulkShortenFn           func(ctx context.Context, urls []string, userID string, numWorkers int) []service.BulkShortenResult
+    importLinksFn           func(ctx context.Context, r io.Reader, userID string) ([]service.ImportResult, error)
+}
+
+func (m *mockURLService) BulkShorten(ctx context.Context, urls []string, userID string, numWorkers int) []service.BulkShortenResult {
+    if m.bulkShortenFn != nil {
+        return m.bulkShortenFn(ctx, urls, userID, numWorkers)
+    }
+    return nil
+}
+
+func (m *mockURLService) ImportLinksCSV(ctx context.Context, r io.Reader, userID string) ([]service.ImportResult, error) {
+    if m.importLinksFn != nil {
+        return m.importLinksFn(ctx, r, userID)
+    }
+    return nil, nil
 }
 
 func (m *mockURLService) ShortenURL(ctx context.Context, originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError) {
