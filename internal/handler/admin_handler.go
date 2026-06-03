@@ -8,6 +8,7 @@ import (
     "github.com/gin-gonic/gin"
     "urlshortener/internal/apperror"
     "urlshortener/internal/model"
+    "urlshortener/internal/service"
 )
 
 type AdminService interface {
@@ -15,6 +16,7 @@ type AdminService interface {
     DeleteLink(ctx context.Context, id string) *apperror.AppError
     GetAllUsers(ctx context.Context) ([]*model.User, *apperror.AppError)
     DeleteUser(ctx context.Context, id string) *apperror.AppError
+    GetDashboard(ctx context.Context) (*service.DashboardData, *apperror.AppError) // ← new
 }
 
 type AdminHandler struct {
@@ -90,4 +92,22 @@ func (h *AdminHandler) DeleteUser(c *gin.Context) {
     }
 
     respondData[*struct{}](c, http.StatusOK, "کاربر با موفقیت حذف شد", nil)
+}
+
+func (h *AdminHandler) Dashboard(c *gin.Context) {
+    data, appErr := h.service.GetDashboard(
+        c.Request.Context())
+    if appErr != nil {
+        respondError(c, appErr)
+        return
+    }
+
+    respondSuccess(c, http.StatusOK,
+        "عملیات با موفقیت انجام شد",
+        gin.H{
+            "links_count": len(data.Links),
+            "users_count": len(data.Users),
+            "links":       data.Links,
+            "users":       data.Users,
+        })
 }
