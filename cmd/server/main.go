@@ -81,15 +81,31 @@ func main() {
 
     slog.Info("shutdown signal received", "signal", sig)
 
-    // Give in-flight requests 30 seconds to finish
-    ctx, cancel := context.WithTimeout(
+    // Give in-flight requests 30s — but FORCE exit if shutdown itself hangs
+    shutdownCtx, cancel := context.WithTimeout(
         context.Background(), 30*time.Second)
     defer cancel()
 
-    if err := srv.Shutdown(ctx); err != nil {
-        slog.Error("forced shutdown", "error", err)
+    // Channel to know when Shutdown() finishes
+    done := make(chan struct{})
+
+    go func() {
+        if err := srv.Shutdown(shutdownCtx); err != nil {
+            slog.Error("shutdown error", "error", err)
+        }
+        close(done) // signal that shutdown completed
+    }()
+
+    // select — wait for EITHER shutdown to finish OR timeout
+    select {
+    case <-done:
+        slog.Info("server stopped cleanly")
+    case <-shutdownCtx.Done():
+        slog.Error("shutdown timed out — forcing exit")
         os.Exit(1)
     }
 
-    slog.Info("server stopped cleanly")
+    // Drain remaining click increments after HTTP server stopped
+    urlService.Close()
+    slog.Info("click worker stopped")
 }

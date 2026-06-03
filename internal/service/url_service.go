@@ -1,6 +1,7 @@
 package service
 
 import (
+    "log/slog"
     "context"
     "time"
 
@@ -20,10 +21,31 @@ type URLRepository interface {
 
 type URLService struct {
     repo URLRepository
+    clickCh   chan string
 }
 
 func NewURLService(repo URLRepository) *URLService {
-    return &URLService{repo: repo}
+    s := &URLService{
+        repo:    repo,
+        clickCh: make(chan string, 100), // buffered — non-blocking
+    }
+    go s.clickWorker() // start background worker
+    return s
+}
+
+// clickWorker drains the click channel in the background
+func (s *URLService) clickWorker() {
+    for id := range s.clickCh {
+        // context.Background() — not tied to any request
+        ctx, cancel := context.WithTimeout(
+            context.Background(), 5*time.Second)
+        s.repo.IncrementClicks(ctx, id)
+        cancel()
+    }
+}
+
+func (s *URLService) Close() {
+    close(s.clickCh) // closing the channel stops the range loop in clickWorker
 }
 
 func (s *URLService) ShortenURL(
@@ -60,7 +82,18 @@ func (s *URLService) GetByShortCode(
         return nil, apperror.Gone("short url has expired")
     }
 
-    s.repo.IncrementClicks(ctx, url.ID)
+    // Non-blocking click increment using select
+    // If channel is full (100 pending) — drop the click rather than block
+    select {
+    case s.clickCh <- url.ID:
+        // sent to worker — will be processed asynchronously
+    default:
+        // channel full — skip this click increment
+        // better to lose a click than to slow down a redirect
+        slog.Warn("click channel full, dropping increment",
+            "url_id", url.ID)
+    }
+
     return url, nil
 }
 

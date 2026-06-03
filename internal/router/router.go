@@ -1,6 +1,8 @@
 package router
 
 import (
+    "time"
+    
     "github.com/gin-gonic/gin"
     "urlshortener/internal/handler"
     "urlshortener/internal/middleware"
@@ -17,6 +19,7 @@ func Setup(
     r.Use(middleware.Logger())
     r.Use(gin.Recovery())
     r.Use(rateLimiter) 
+    r.Use(middleware.Timeout(30 * time.Second))
 
     // All routes live under /api/v1
     api := r.Group("/api/v1")
