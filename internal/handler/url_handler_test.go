@@ -12,11 +12,13 @@ import (
     "github.com/gin-gonic/gin"
     "github.com/stretchr/testify/assert"
     "github.com/stretchr/testify/require"
+    "urlshortener/internal/apperror"
     "urlshortener/internal/handler"
-    "urlshortener/internal/middleware" 
+    "urlshortener/internal/middleware"
     "urlshortener/internal/model"
-	"urlshortener/internal/apperror"
 )
+
+// ── Mock ──────────────────────────────────────────────────────────────────────
 
 type mockURLService struct {
     shortenFn               func(ctx context.Context, originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError)
@@ -28,24 +30,23 @@ type mockURLService struct {
 func (m *mockURLService) ShortenURL(ctx context.Context, originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError) {
     return m.shortenFn(ctx, originalURL, userID, expiresAt)
 }
-
 func (m *mockURLService) GetByShortCode(ctx context.Context, code string) (*model.URL, *apperror.AppError) {
     return m.getByShortCodeFn(ctx, code)
 }
-
 func (m *mockURLService) GetUserLinks(ctx context.Context, userID string) ([]*model.URL, *apperror.AppError) {
     if m.getUserLinksFn != nil {
         return m.getUserLinksFn(ctx, userID)
     }
     return nil, nil
 }
-
 func (m *mockURLService) GetUserLinksPaginated(ctx context.Context, userID string, params model.PaginationParams) (*model.PaginatedResult[*model.URL], *apperror.AppError) {
     if m.getUserLinksPaginatedFn != nil {
         return m.getUserLinksPaginatedFn(ctx, userID, params)
     }
     return nil, nil
 }
+
+// ── Router setup ──────────────────────────────────────────────────────────────
 
 func setupRouter(svc handler.URLService) *gin.Engine {
     gin.SetMode(gin.TestMode)
@@ -62,115 +63,161 @@ func setupRouter(svc handler.URLService) *gin.Engine {
     return r
 }
 
-// --- Tests for POST /shorten ---
+// ── Table-driven: POST /shorten ───────────────────────────────────────────────
 
-func TestShorten_Success(t *testing.T) {
-    mock := &mockURLService{
-        shortenFn: func(ctx context.Context, originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError) {
-            return &model.URL{OriginalURL: originalURL, ShortCode: "abc123"}, nil
+func TestShorten(t *testing.T) {
+    tests := []struct {
+        name       string
+        body       string
+        mockFn     func(ctx context.Context, url, userID string, exp *time.Time) (*model.URL, *apperror.AppError)
+        wantStatus int
+        wantData   bool // whether to check data fields
+    }{
+        {
+            name: "success",
+            body: `{"url": "https://example.com"}`,
+            mockFn: func(ctx context.Context, url, userID string, exp *time.Time) (*model.URL, *apperror.AppError) {
+                return &model.URL{
+                    OriginalURL: url,
+                    ShortCode:   "abc123",
+                }, nil
+            },
+            wantStatus: http.StatusCreated,
+            wantData:   true,
+        },
+        {
+            name:       "missing url",
+            body:       `{}`,
+            mockFn:     nil, // never reaches service
+            wantStatus: http.StatusBadRequest,
+            wantData:   false,
+        },
+        {
+            name: "invalid url format",
+            body: `{"url": "not-a-url"}`,
+            mockFn: nil, // caught by validator
+            wantStatus: http.StatusBadRequest,
+            wantData:   false,
+        },
+        {
+            name: "service error",
+            body: `{"url": "https://example.com"}`,
+            mockFn: func(ctx context.Context, url, userID string, exp *time.Time) (*model.URL, *apperror.AppError) {
+                return nil, apperror.Internal("db is down")
+            },
+            wantStatus: http.StatusInternalServerError,
+            wantData:   false,
         },
     }
 
-    r := setupRouter(mock)
+    for _, tt := range tests {
+        // tt captured per iteration — important for parallel tests
+        tt := tt
+        t.Run(tt.name, func(t *testing.T) {
+            mock := &mockURLService{
+                shortenFn: func(ctx context.Context, url, userID string, exp *time.Time) (*model.URL, *apperror.AppError) {
+                    if tt.mockFn != nil {
+                        return tt.mockFn(ctx, url, userID, exp)
+                    }
+                    t.Fatal("shortenFn called but not expected")
+                    return nil, nil
+                },
+            }
 
-    body := bytes.NewBufferString(`{"url": "https://example.com"}`)
-    req := httptest.NewRequest(http.MethodPost, "/shorten", body)
-    req.Header.Set("Content-Type", "application/json")
-    w := httptest.NewRecorder()
+            r := setupRouter(mock)
+            req := httptest.NewRequest(http.MethodPost, "/shorten",
+                bytes.NewBufferString(tt.body))
+            req.Header.Set("Content-Type", "application/json")
+            w := httptest.NewRecorder()
+            r.ServeHTTP(w, req)
 
-    r.ServeHTTP(w, req)
+            assert.Equal(t, tt.wantStatus, w.Code, "status mismatch")
 
-    assert.Equal(t, http.StatusCreated, w.Code)
+            if tt.wantData {
+                var resp map[string]interface{}
+                err := json.Unmarshal(w.Body.Bytes(), &resp)
+                require.NoError(t, err)
 
-    // New response shape — use map[string]interface{} since values are mixed types
-    var resp map[string]interface{}
-    err := json.Unmarshal(w.Body.Bytes(), &resp)
-    require.NoError(t, err)
+                assert.Equal(t, true, resp["success"])
 
-    // Check top level
-    assert.Equal(t, true, resp["success"])
-
-    // data is a nested object — type assert it to map[string]interface{}
-    data, ok := resp["data"].(map[string]interface{})
-    require.True(t, ok, "data should be an object")
-
-    assert.Contains(t, data["short_url"], "http://localhost:8080/")
-    assert.NotEmpty(t, data["short_code"])
-    assert.Equal(t, "https://example.com", data["original_url"])
+                data, ok := resp["data"].(map[string]interface{})
+                require.True(t, ok, "data should be an object")
+                assert.Contains(t, data["short_url"], "http://localhost:8080/")
+                assert.NotEmpty(t, data["short_code"])
+                assert.Equal(t, "https://example.com", data["original_url"])
+            }
+        })
+    }
 }
 
-func TestShorten_MissingURL(t *testing.T) {
-    mock := &mockURLService{}
+// ── Table-driven: GET /:code ──────────────────────────────────────────────────
 
-    r := setupRouter(mock)
-
-    body := bytes.NewBufferString(`{}`)
-    req := httptest.NewRequest(http.MethodPost, "/shorten", body)
-    req.Header.Set("Content-Type", "application/json")
-    w := httptest.NewRecorder()
-
-    r.ServeHTTP(w, req)
-
-    assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestShorten_RepoError(t *testing.T) {
-    mock := &mockURLService{
-        shortenFn: func(ctx context.Context, originalURL string, userID string, expiresAt *time.Time) (*model.URL, *apperror.AppError) {
-            return nil, apperror.Internal("could not create short url")
+func TestRedirect(t *testing.T) {
+    tests := []struct {
+        name           string
+        code           string
+        mockFn         func(ctx context.Context, code string) (*model.URL, *apperror.AppError)
+        wantStatus     int
+        wantLocation   string
+    }{
+        {
+            name: "success",
+            code: "abc123",
+            mockFn: func(ctx context.Context, code string) (*model.URL, *apperror.AppError) {
+                return &model.URL{
+                    ID:          "some-uuid",
+                    ShortCode:   code,
+                    OriginalURL: "https://example.com",
+                }, nil
+            },
+            wantStatus:   http.StatusMovedPermanently,
+            wantLocation: "https://example.com",
+        },
+        {
+            name: "not found",
+            code: "notexist",
+            mockFn: func(ctx context.Context, code string) (*model.URL, *apperror.AppError) {
+                return nil, apperror.NotFound("short url not found")
+            },
+            wantStatus: http.StatusNotFound,
+        },
+        {
+            name: "expired link",
+            code: "expired",
+            mockFn: func(ctx context.Context, code string) (*model.URL, *apperror.AppError) {
+                return nil, apperror.Gone("short url has expired")
+            },
+            wantStatus: http.StatusGone,
+        },
+        {
+            name: "server error",
+            code: "errcode",
+            mockFn: func(ctx context.Context, code string) (*model.URL, *apperror.AppError) {
+                return nil, apperror.Internal("something went wrong")
+            },
+            wantStatus: http.StatusInternalServerError,
         },
     }
 
-    r := setupRouter(mock)
+    for _, tt := range tests {
+        tt := tt
+        t.Run(tt.name, func(t *testing.T) {
+            mock := &mockURLService{
+                getByShortCodeFn: tt.mockFn,
+            }
 
-    body := bytes.NewBufferString(`{"url": "https://example.com"}`)
-    req := httptest.NewRequest(http.MethodPost, "/shorten", body)
-    req.Header.Set("Content-Type", "application/json")
-    w := httptest.NewRecorder()
+            r := setupRouter(mock)
+            req := httptest.NewRequest(http.MethodGet,
+                "/"+tt.code, nil)
+            w := httptest.NewRecorder()
+            r.ServeHTTP(w, req)
 
-    r.ServeHTTP(w, req)
+            assert.Equal(t, tt.wantStatus, w.Code)
 
-    assert.Equal(t, http.StatusInternalServerError, w.Code)
-}
-
-// --- Tests for GET /:code ---
-
-
-func TestRedirect_Success(t *testing.T) {
-    mock := &mockURLService{
-        getByShortCodeFn: func(ctx context.Context, code string) (*model.URL, *apperror.AppError) {
-            return &model.URL{
-                ID:          "some-uuid",
-                ShortCode:   code,
-                OriginalURL: "https://example.com",
-            }, nil
-        },
+            if tt.wantLocation != "" {
+                assert.Equal(t, tt.wantLocation,
+                    w.Header().Get("Location"))
+            }
+        })
     }
-
-    r := setupRouter(mock)
-
-    req := httptest.NewRequest(http.MethodGet, "/abc123", nil)
-    w := httptest.NewRecorder()
-
-    r.ServeHTTP(w, req)
-
-    assert.Equal(t, http.StatusMovedPermanently, w.Code)
-    assert.Equal(t, "https://example.com", w.Header().Get("Location"))
-}
-
-func TestRedirect_NotFound(t *testing.T) {
-    mock := &mockURLService{
-        getByShortCodeFn: func(ctx context.Context, code string) (*model.URL, *apperror.AppError) {
-            return nil, apperror.NotFound("short url not found")
-        },
-    }
-
-    r := setupRouter(mock)
-
-    req := httptest.NewRequest(http.MethodGet, "/notexist", nil)
-    w := httptest.NewRecorder()
-
-    r.ServeHTTP(w, req)
-
-    assert.Equal(t, http.StatusNotFound, w.Code)
 }
