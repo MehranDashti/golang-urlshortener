@@ -6,6 +6,7 @@ import (
     "path/filepath"
     "runtime"
     "time"
+    "context"
 
     "github.com/gin-gonic/gin"
     "github.com/joho/godotenv"
@@ -57,7 +58,7 @@ func New() *TestServer {
 
     urlRepo     := repository.NewURLRepository(db)
     userRepo    := repository.NewUserRepository(db)
-    urlService  := service.NewURLService(urlRepo)
+    urlService := service.NewURLService(urlRepo, context.Background())
     authService := service.NewAuthService(userRepo, tokenManager)
     adminService := service.NewAdminService(urlRepo, userRepo)
 

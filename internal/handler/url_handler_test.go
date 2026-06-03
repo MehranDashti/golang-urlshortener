@@ -7,6 +7,7 @@ import (
     "net/http"
     "net/http/httptest"
     "testing"
+    "go.uber.org/goleak"
     "time"
 
     "github.com/gin-gonic/gin"
@@ -17,6 +18,11 @@ import (
     "urlshortener/internal/middleware"
     "urlshortener/internal/model"
 )
+
+func TestMain(m *testing.M) {
+    goleak.VerifyTestMain(m)
+}
+
 
 // ── Mock ──────────────────────────────────────────────────────────────────────
 

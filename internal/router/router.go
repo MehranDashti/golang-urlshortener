@@ -1,6 +1,8 @@
 package router
 
 import (
+    "net/http"
+    "runtime"
     "time"
     
     "github.com/gin-gonic/gin"
@@ -55,6 +57,19 @@ func Setup(
 
             admin.GET("/dashboard", adminHandler.Dashboard)
         }
+    }
+    if gin.Mode() == gin.DebugMode {
+        api.GET("/debug/goroutines", func(c *gin.Context) {
+            buf := make([]byte, 1<<20)
+            n := runtime.Stack(buf, true)
+            c.Data(http.StatusOK, "text/plain", buf[:n])
+        })
+
+        api.GET("/debug/goroutine-count", func(c *gin.Context) {
+            c.JSON(http.StatusOK, gin.H{
+                "goroutines": runtime.NumGoroutine(),
+            })
+        })
     }
 
     return r

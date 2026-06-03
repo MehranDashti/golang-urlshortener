@@ -6,9 +6,16 @@ import (
 
     "github.com/stretchr/testify/assert"
     "github.com/stretchr/testify/require"
+    "go.uber.org/goleak"
     "urlshortener/tests/testhelper"
     "urlshortener/tests/testserver"
 )
+
+// TestMain runs before all tests in this package.
+// goleak checks for goroutine leaks after every test.
+func TestMain(m *testing.M) {
+    goleak.VerifyTestMain(m)
+}
 
 func TestAuthSignup_Success(t *testing.T) {
     s := testserver.New()

@@ -36,9 +36,14 @@ func main() {
         cfg.RefreshTokenDuration,
     )
 
+    // Create a cancellable context for background workers
+    workerCtx, workerCancel := context.WithCancel(
+        context.Background())
+    defer workerCancel() // cancels all workers on shutdown
+
     urlRepo      := repository.NewURLRepository(db)
     userRepo     := repository.NewUserRepository(db)
-    urlService   := service.NewURLService(urlRepo)
+    urlService := service.NewURLService(urlRepo, workerCtx)
     authService  := service.NewAuthService(userRepo, tokenManager)
     adminService := service.NewAdminService(urlRepo, userRepo)
 

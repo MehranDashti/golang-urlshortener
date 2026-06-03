@@ -45,24 +45,32 @@ type ImportResult struct {
     Error       string
 }
 
-func NewURLService(repo URLRepository) *URLService {
+func NewURLService(
+    repo URLRepository,
+    ctx context.Context) *URLService {
     s := &URLService{
         repo:    repo,
         clickCh: make(chan string, 100),
     }
-    go s.clickWorker()
+    go s.clickWorker(ctx) // pass context — worker exits when ctx cancelled
     return s
 }
 
-func (s *URLService) clickWorker() {
-    for id := range s.clickCh {
-        ctx, cancel := context.WithTimeout(
-            context.Background(), 5*time.Second)
-        s.repo.IncrementClicks(ctx, id)
-        cancel()
+func (s *URLService) clickWorker(ctx context.Context) {
+    for {
+        select {
+        case id, ok := <-s.clickCh:
+            if !ok {
+                return // channel closed — exit cleanly
+            }
+            workCtx, cancel := context.WithTimeout(
+                context.Background(), 5*time.Second)
+            s.repo.IncrementClicks(workCtx, id)
+            cancel()
 
-        // Store the click time — sync.Map is safe for concurrent use
-        s.recentIDs.Store(id, time.Now())
+        case <-ctx.Done():
+            return // context cancelled — exit cleanly
+        }
     }
 }
 
