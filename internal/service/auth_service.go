@@ -38,7 +38,7 @@ func (s *AuthService) Signup(
 
     existing, err := s.repo.FindByEmail(ctx, email)
     if err != nil {
-        return nil, apperror.Internal("could not check email")
+        return nil, apperror.InternalWithErr("could not check email", err)
     }
     if existing != nil {
         return nil, apperror.BadRequest("email already in use")
@@ -46,7 +46,7 @@ func (s *AuthService) Signup(
 
     hashed, err := bcrypt.GenerateFromPassword([]byte(password), 12)
     if err != nil {
-        return nil, apperror.Internal("could not hash password")
+        return nil, apperror.InternalWithErr("could not hash password", err)
     }
 
     user := &model.User{
@@ -55,7 +55,7 @@ func (s *AuthService) Signup(
     }
 
     if err := s.repo.Create(ctx, user); err != nil {
-        return nil, apperror.Internal("could not create user")
+        return nil, apperror.InternalWithErr("could not create user", err)
     }
 
     go func(email string) {
@@ -71,7 +71,7 @@ func (s *AuthService) Login(
 
     user, err := s.repo.FindByEmail(ctx, email)
     if err != nil {
-        return nil, apperror.Internal("could not find user")
+        return nil, apperror.InternalWithErr("could not find user", err)
     }
     if user == nil {
         return nil, apperror.Unauthorized("invalid credentials")
@@ -86,13 +86,13 @@ func (s *AuthService) Login(
     accessToken, err := s.tokenManager.GenerateAccessToken(
         user.ID, user.Role)
     if err != nil {
-        return nil, apperror.Internal("could not generate access token")
+        return nil, apperror.InternalWithErr("could not generate access token", err)
     }
 
     refreshToken, err := s.tokenManager.GenerateRefreshToken(
         user.ID, user.Role)
     if err != nil {
-        return nil, apperror.Internal("could not generate refresh token")
+        return nil, apperror.InternalWithErr("could not generate refresh token", err)
     }
 
     return &TokenPair{
@@ -114,13 +114,13 @@ func (s *AuthService) Refresh(refreshToken string) (*TokenPair, *apperror.AppErr
     accessToken, err := s.tokenManager.GenerateAccessToken(
         claims.UserID, claims.Role)
     if err != nil {
-        return nil, apperror.Internal("could not generate access token")
+        return nil, apperror.InternalWithErr("could not generate access token", err)
     }
 
     newRefreshToken, err := s.tokenManager.GenerateRefreshToken(
         claims.UserID, claims.Role)
     if err != nil {
-        return nil, apperror.Internal("could not generate refresh token")
+        return nil, apperror.InternalWithErr("could not generate refresh token", err)
     }
 
     return &TokenPair{

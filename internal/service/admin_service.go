@@ -34,7 +34,7 @@ func (s *AdminService) GetAllLinks(
     ctx context.Context) ([]*model.URL, *apperror.AppError) {
     urls, err := s.urlRepo.FindAll(ctx)
     if err != nil {
-        return nil, apperror.Internal("could not fetch links")
+        return nil, apperror.InternalWithErr("could not fetch links", err)
     }
     return urls, nil
 }
@@ -42,7 +42,7 @@ func (s *AdminService) GetAllLinks(
 func (s *AdminService) DeleteLink(
     ctx context.Context, id string) *apperror.AppError {
     if err := s.urlRepo.Delete(ctx, id); err != nil {
-        return apperror.Internal("could not delete link")
+        return apperror.InternalWithErr("could not delete link", err)
     }
     return nil
 }
@@ -51,7 +51,7 @@ func (s *AdminService) GetAllUsers(
     ctx context.Context) ([]*model.User, *apperror.AppError) {
     users, err := s.userRepo.FindAll(ctx)
     if err != nil {
-        return nil, apperror.Internal("could not fetch users")
+        return nil, apperror.InternalWithErr("could not fetch users", err)
     }
     return users, nil
 }

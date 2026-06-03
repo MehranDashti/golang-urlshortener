@@ -62,7 +62,7 @@ func (s *URLService) ShortenURL(
     }
 
     if err := s.repo.Create(ctx, url); err != nil {
-        return nil, apperror.Internal("could not create short url")
+        return nil, apperror.InternalWithErr("could not create short url", err)
     }
     return url, nil
 }
@@ -73,7 +73,7 @@ func (s *URLService) GetByShortCode(
 
     url, err := s.repo.FindByShortCode(ctx, code)
     if err != nil {
-        return nil, apperror.Internal("something went wrong")
+        return nil, apperror.InternalWithErr("something went wrong", err)
     }
     if url == nil {
         return nil, apperror.NotFound("short url not found")
@@ -103,7 +103,7 @@ func (s *URLService) GetUserLinks(
 
     urls, err := s.repo.FindByUserID(ctx, userID)
     if err != nil {
-        return nil, apperror.Internal("could not fetch links")
+        return nil, apperror.InternalWithErr("could not fetch links", err)
     }
     return urls, nil
 }
@@ -116,7 +116,7 @@ func (s *URLService) GetUserLinksPaginated(
     urls, total, err := s.repo.FindByUserIDPaginated(
         ctx, userID, params)
     if err != nil {
-        return nil, apperror.Internal("could not fetch links")
+        return nil, apperror.InternalWithErr("could not fetch links", err)
     }
 
     result := model.NewPaginatedResult(urls, total, params)
