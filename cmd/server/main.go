@@ -1,6 +1,7 @@
 package main
 
 import (
+    "strings"
     "context"
     "log/slog"
     "net/http"
@@ -8,6 +9,7 @@ import (
     "os/signal"
     "syscall"
     "time"
+    _ "embed"
 
     "urlshortener/internal/config"
     "urlshortener/internal/database"
@@ -22,6 +24,10 @@ import (
 func main() {
     cfg := config.Load()
     db  := database.Connect(cfg.DSN)
+
+    slog.Info("server starting",
+    "port", cfg.Port,
+    "version", strings.TrimSpace(version))
 
     // Wire dependencies
     tokenManager := token.NewManager(

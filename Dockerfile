@@ -34,7 +34,6 @@ WORKDIR /app
 
 # Copy only the binary and migrations from builder
 COPY --from=builder /app/bin/server .
-COPY --from=builder /app/migrations ./migrations
 
 # Non-root user — security best practice
 RUN adduser -D -g '' appuser
