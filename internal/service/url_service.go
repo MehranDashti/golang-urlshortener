@@ -1,6 +1,8 @@
 package service
 
 import (
+    "encoding/csv"
+    "io"
     "fmt"
     "log/slog"
     "context"
@@ -30,6 +32,14 @@ type URLService struct {
 
 // BulkShortenResult holds the result of one bulk shorten operation
 type BulkShortenResult struct {
+    OriginalURL string
+    ShortCode   string
+    Error       string
+}
+
+// ImportResult holds the outcome of one import row
+type ImportResult struct {
+    Row         int
     OriginalURL string
     ShortCode   string
     Error       string
@@ -208,4 +218,62 @@ func (s *URLService) BulkShorten(
     }
 
     return results
+}
+
+// ImportLinksCSV reads URLs from a CSV reader and creates short links.
+// r can be an uploaded file, HTTP body, or any io.Reader.
+func (s *URLService) ImportLinksCSV(
+    ctx context.Context,
+    r io.Reader,
+    userID string) ([]ImportResult, error) {
+
+    cr := csv.NewReader(r)
+
+    // Skip header row
+    if _, err := cr.Read(); err != nil {
+        return nil, fmt.Errorf("read CSV header: %w", err)
+    }
+
+    var results []ImportResult
+    row := 1
+
+    for {
+        record, err := cr.Read()
+        if err == io.EOF {
+            break // end of file — normal exit
+        }
+        if err != nil {
+            return nil, fmt.Errorf(
+                "read CSV row %d: %w", row, err)
+        }
+
+        row++
+        if len(record) == 0 || record[0] == "" {
+            continue // skip empty rows
+        }
+
+        originalURL := record[0]
+        url := &model.URL{
+            UserID:      userID,
+            OriginalURL: originalURL,
+            ShortCode:   util.GenerateShortCode(),
+        }
+
+        if err := s.repo.Create(ctx, url); err != nil {
+            results = append(results, ImportResult{
+                Row:         row,
+                OriginalURL: originalURL,
+                Error:       "could not create short url",
+            })
+            continue // skip failed rows, process the rest
+        }
+
+        results = append(results, ImportResult{
+            Row:         row,
+            OriginalURL: originalURL,
+            ShortCode:   url.ShortCode,
+        })
+    }
+
+    return results, nil
 }

@@ -1,6 +1,8 @@
 package handler
 
 import (
+    "log/slog"
+    "io"
     "context"
     "net/http"
     "time"
@@ -16,7 +18,8 @@ type AdminService interface {
     DeleteLink(ctx context.Context, id string) *apperror.AppError
     GetAllUsers(ctx context.Context) ([]*model.User, *apperror.AppError)
     DeleteUser(ctx context.Context, id string) *apperror.AppError
-    GetDashboard(ctx context.Context) (*service.DashboardData, *apperror.AppError) // ← new
+    GetDashboard(ctx context.Context) (*service.DashboardData, *apperror.AppError)
+    WriteLinksCSV(ctx context.Context, w io.Writer) error
 }
 
 type AdminHandler struct {
@@ -110,4 +113,22 @@ func (h *AdminHandler) Dashboard(c *gin.Context) {
             "links":       data.Links,
             "users":       data.Users,
         })
+}
+
+func (h *AdminHandler) ExportLinksCSV(c *gin.Context) {
+    // Tell the browser this is a CSV file download
+    c.Header("Content-Type", "text/csv")
+    c.Header("Content-Disposition",
+        "attachment; filename=links.csv")
+
+    // c.Writer implements io.Writer
+    // We stream directly to the HTTP response — no buffer needed
+    // First byte goes to client immediately
+    if err := h.service.WriteLinksCSV(
+        c.Request.Context(), c.Writer); err != nil {
+        // Can't change status code here — headers already sent
+        // Log the error, client gets partial CSV
+        slog.Error("ExportLinksCSV failed", "error", err)
+        return
+    }
 }

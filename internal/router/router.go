@@ -46,6 +46,8 @@ func Setup(
         admin.Use(authMiddleware, middleware.Admin())
         {
             admin.GET("/links", adminHandler.ListLinks)
+            admin.GET("/links/export", adminHandler.ExportLinksCSV)
+            client.POST("/links/import", urlHandler.ImportLinks)
             admin.DELETE("/links/:id", adminHandler.DeleteLink)
             
             admin.GET("/users", adminHandler.ListUsers)

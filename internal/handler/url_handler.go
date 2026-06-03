@@ -4,6 +4,7 @@ import (
     "context"
     "net/http"
     "time"
+    "io"
 
     "github.com/gin-gonic/gin"
     "urlshortener/internal/apperror"
@@ -23,6 +24,8 @@ type URLService interface {
         params model.PaginationParams) (*model.PaginatedResult[*model.URL], *apperror.AppError)
     BulkShorten(ctx context.Context, urls []string,
         userID string, numWorkers int) []service.BulkShortenResult
+    ImportLinksCSV(ctx context.Context, r io.Reader,
+        userID string) ([]service.ImportResult, error)
 }
 
 type URLHandler struct {
@@ -159,4 +162,33 @@ func (h *URLHandler) BulkShorten(c *gin.Context) {
 
     respondSuccess(c, http.StatusCreated,
         "لینک‌ها با موفقیت ساخته شدند", results)
+}
+
+func (h *URLHandler) ImportLinks(c *gin.Context) {
+    userID, exists := c.Get(middleware.UserIDKey)
+    if !exists {
+        respondError(c, apperror.Unauthorized("not authenticated"))
+        return
+    }
+
+    // Get the uploaded file
+    file, _, err := c.Request.FormFile("file")
+    if err != nil {
+        respondError(c, apperror.BadRequest(
+            "file is required — send as multipart/form-data"))
+        return
+    }
+    defer file.Close()
+
+    // file implements io.Reader — pass directly to service
+    results, err := h.service.ImportLinksCSV(
+        c.Request.Context(), file, userID.(string))
+    if err != nil {
+        respondError(c,
+            apperror.InternalWithErr("import failed", err))
+        return
+    }
+
+    respondSuccess(c, http.StatusCreated,
+        "فایل با موفقیت پردازش شد", results)
 }

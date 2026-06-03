@@ -1,6 +1,9 @@
 package service
 
 import (
+    "encoding/csv"
+    "io"
+    "time"
     "context"
     "fmt"
     "log/slog"
@@ -138,4 +141,52 @@ func (s *AdminService) GetDashboard(
     }
 
     return &data, nil
+}
+
+// WriteLinksCSV writes all links as CSV to any io.Writer.
+// Works with HTTP response, file, buffer — anything.
+func (s *AdminService) WriteLinksCSV(
+    ctx context.Context,
+    w io.Writer) error {
+
+    links, err := s.urlRepo.FindAll(ctx)
+    if err != nil {
+        return fmt.Errorf("WriteLinksCSV: %w", err)
+    }
+
+    // csv.NewWriter wraps any io.Writer
+    cw := csv.NewWriter(w)
+    defer cw.Flush() // ensure buffered data is written
+
+    // Header row
+    if err := cw.Write([]string{
+        "id", "short_code", "original_url",
+        "clicks", "created_at", "expires_at",
+    }); err != nil {
+        return fmt.Errorf("write CSV header: %w", err)
+    }
+
+    // Data rows
+    for _, link := range links {
+        expiresAt := ""
+        if link.ExpiresAt != nil {
+            expiresAt = link.ExpiresAt.Format(time.RFC3339)
+        }
+
+        if err := cw.Write([]string{
+            link.ID,
+            link.ShortCode,
+            link.OriginalURL,
+            fmt.Sprintf("%d", link.Clicks),
+            link.CreatedAt.Format(time.RFC3339),
+            expiresAt,
+        }); err != nil {
+            return fmt.Errorf("write CSV row %s: %w",
+                link.ID, err)
+        }
+    }
+
+    // Check for any errors during writes
+    cw.Flush()
+    return cw.Error()
 }
