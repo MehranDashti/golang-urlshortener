@@ -61,25 +61,44 @@ func NewURLService(
 }
 
 func (s *URLService) clickWorker(ctx context.Context) {
+    // Clean recentIDs every 100 clicks or every minute
+    cleanTicker := time.NewTicker(time.Minute)
+    defer cleanTicker.Stop()
+
+    processedCount := 0
+
     for {
         select {
         case id, ok := <-s.clickCh:
             if !ok {
-                return // channel closed — exit cleanly
+                return // channel closed
             }
+
             workCtx, cancel := context.WithTimeout(
                 context.Background(), 5*time.Second)
             s.repo.IncrementClicks(workCtx, id)
             cancel()
 
+            // Record click time
+            s.recentIDs.Store(id, time.Now())
+            processedCount++
+
+            // Clean every 100 processed clicks
+            if processedCount >= 100 {
+                s.cleanRecentIDs()
+                processedCount = 0
+            }
+
+        case <-cleanTicker.C:
+            // Also clean every minute regardless of click volume
+            s.cleanRecentIDs()
+
         case <-ctx.Done():
-            return // context cancelled — exit cleanly
+            return
         }
     }
 }
 
-// cleanRecentIDs removes entries older than 1 minute
-// Called periodically — prevents recentIDs growing forever
 func (s *URLService) cleanRecentIDs() {
     s.recentIDs.Range(func(key, value interface{}) bool {
         t := value.(time.Time)

@@ -1,6 +1,8 @@
 package service
 
 import (
+    "bytes"
+    "sync"
     "gorm.io/gorm"
     "encoding/csv"
     "io"
@@ -14,6 +16,12 @@ import (
     "urlshortener/internal/model"
     "urlshortener/internal/repository"
 )
+
+var csvBufPool = sync.Pool{
+    New: func() interface{} {
+        return new(bytes.Buffer)
+    },
+}
 
 type AdminURLRepository interface {
     FindAll(ctx context.Context) ([]*model.URL, error)
@@ -169,8 +177,6 @@ func (s *AdminService) GetDashboard(
     return &data, nil
 }
 
-// WriteLinksCSV writes all links as CSV to any io.Writer.
-// Works with HTTP response, file, buffer — anything.
 func (s *AdminService) WriteLinksCSV(
     ctx context.Context,
     w io.Writer) error {
@@ -180,11 +186,13 @@ func (s *AdminService) WriteLinksCSV(
         return fmt.Errorf("WriteLinksCSV: %w", err)
     }
 
-    // csv.NewWriter wraps any io.Writer
-    cw := csv.NewWriter(w)
-    defer cw.Flush() // ensure buffered data is written
+    // Get buffer from pool — reused across requests
+    buf := csvBufPool.Get().(*bytes.Buffer)
+    buf.Reset()
+    defer csvBufPool.Put(buf) // return to pool when done
 
-    // Header row
+    cw := csv.NewWriter(buf) // write to buffer first
+
     if err := cw.Write([]string{
         "id", "short_code", "original_url",
         "clicks", "created_at", "expires_at",
@@ -192,13 +200,11 @@ func (s *AdminService) WriteLinksCSV(
         return fmt.Errorf("write CSV header: %w", err)
     }
 
-    // Data rows
     for _, link := range links {
         expiresAt := ""
         if link.ExpiresAt != nil {
             expiresAt = link.ExpiresAt.Format(time.RFC3339)
         }
-
         if err := cw.Write([]string{
             link.ID,
             link.ShortCode,
@@ -212,9 +218,14 @@ func (s *AdminService) WriteLinksCSV(
         }
     }
 
-    // Check for any errors during writes
     cw.Flush()
-    return cw.Error()
+    if err := cw.Error(); err != nil {
+        return err
+    }
+
+    // Write buffered content to the actual writer
+    _, err = buf.WriteTo(w)
+    return err
 }
 
 func (s *AdminService) GetAllLinksPaginated(
