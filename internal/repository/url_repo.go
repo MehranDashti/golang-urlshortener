@@ -119,3 +119,29 @@ func (r *URLRepository) DeleteByUserID(
     }
     return nil
 }
+
+func (r *URLRepository) FindAllPaginated(
+    ctx context.Context,
+    params model.PaginationParams) ([]*model.URL, int64, error) {
+
+    var urls  []*model.URL
+    var total int64
+
+    if err := r.db.WithContext(ctx).
+        Model(&model.URL{}).
+        Count(&total).Error; err != nil {
+        return nil, 0, fmt.Errorf(
+            "URLRepository.FindAllPaginated count: %w", err)
+    }
+
+    if err := r.db.WithContext(ctx).
+        Offset(params.Offset()).
+        Limit(params.Limit).
+        Order("created_at DESC").
+        Find(&urls).Error; err != nil {
+        return nil, 0, fmt.Errorf(
+            "URLRepository.FindAllPaginated fetch: %w", err)
+    }
+
+    return urls, total, nil
+}

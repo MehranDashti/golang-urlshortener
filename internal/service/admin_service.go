@@ -17,6 +17,8 @@ import (
 
 type AdminURLRepository interface {
     FindAll(ctx context.Context) ([]*model.URL, error)
+    FindAllPaginated(ctx context.Context,
+        params model.PaginationParams) ([]*model.URL, int64, error) 
     Delete(ctx context.Context, id string) error
     DeleteByUserID(ctx context.Context, userID string) error
     WithTx(tx *gorm.DB) *repository.URLRepository
@@ -25,6 +27,8 @@ type AdminURLRepository interface {
 
 type AdminUserRepository interface {
     FindAll(ctx context.Context) ([]*model.User, error)
+    FindAllPaginated(ctx context.Context,
+        params model.PaginationParams) ([]*model.User, int64, error)
     Delete(ctx context.Context, id string) error
     WithTx(tx *gorm.DB) *repository.UserRepository
     DB() *gorm.DB                              
@@ -212,3 +216,34 @@ func (s *AdminService) WriteLinksCSV(
     cw.Flush()
     return cw.Error()
 }
+
+func (s *AdminService) GetAllLinksPaginated(
+    ctx context.Context,
+    params model.PaginationParams) (*model.PaginatedResult[*model.URL], *apperror.AppError) {
+
+    urls, total, err := s.urlRepo.FindAllPaginated(ctx, params)
+    if err != nil {
+        slog.Error("GetAllLinksPaginated failed", "error", err)
+        return nil, apperror.InternalWithErr(
+            "could not fetch links", err)
+    }
+
+    result := model.NewPaginatedResult(urls, total, params)
+    return &result, nil
+}
+
+func (s *AdminService) GetAllUsersPaginated(
+    ctx context.Context,
+    params model.PaginationParams) (*model.PaginatedResult[*model.User], *apperror.AppError) {
+
+    users, total, err := s.userRepo.FindAllPaginated(ctx, params)
+    if err != nil {
+        slog.Error("GetAllUsersPaginated failed", "error", err)
+        return nil, apperror.InternalWithErr(
+            "could not fetch users", err)
+    }
+
+    result := model.NewPaginatedResult(users, total, params)
+    return &result, nil
+}
+

@@ -54,6 +54,11 @@ func (m *mockAdminURLRepo) DeleteByUserID(ctx context.Context, userID string) er
 }
 func (m *mockAdminURLRepo) WithTx(_ *gorm.DB) *repository.URLRepository { return nil }
 func (m *mockAdminURLRepo) DB() *gorm.DB                                 { return nil }
+func (m *mockAdminURLRepo) FindAllPaginated(
+    ctx context.Context,
+    params model.PaginationParams) ([]*model.URL, int64, error) {
+    return []*model.URL{}, 0, nil
+}
 
 // ── mockAdminUserRepo ─────────────────────────────────────────────────────────
 type mockAdminUserRepo struct {
@@ -75,6 +80,11 @@ func (m *mockAdminUserRepo) Delete(ctx context.Context, id string) error {
 }
 func (m *mockAdminUserRepo) WithTx(_ *gorm.DB) *repository.UserRepository { return nil }
 func (m *mockAdminUserRepo) DB() *gorm.DB                                  { return nil }
+func (m *mockAdminUserRepo) FindAllPaginated(
+    ctx context.Context,
+    params model.PaginationParams) ([]*model.User, int64, error) {
+    return []*model.User{}, 0, nil
+}
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

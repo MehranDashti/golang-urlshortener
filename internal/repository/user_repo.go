@@ -55,3 +55,29 @@ func (r *UserRepository) Delete(
     }
     return nil
 }
+
+func (r *UserRepository) FindAllPaginated(
+    ctx context.Context,
+    params model.PaginationParams) ([]*model.User, int64, error) {
+
+    var users []*model.User
+    var total int64
+
+    if err := r.db.WithContext(ctx).
+        Model(&model.User{}).
+        Count(&total).Error; err != nil {
+        return nil, 0, fmt.Errorf(
+            "UserRepository.FindAllPaginated count: %w", err)
+    }
+
+    if err := r.db.WithContext(ctx).
+        Offset(params.Offset()).
+        Limit(params.Limit).
+        Order("created_at DESC").
+        Find(&users).Error; err != nil {
+        return nil, 0, fmt.Errorf(
+            "UserRepository.FindAllPaginated fetch: %w", err)
+    }
+
+    return users, total, nil
+}
