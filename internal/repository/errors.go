@@ -6,10 +6,14 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
+var (
+	ErrNotFound = errors.New("not found")
+
+	ErrDuplicate = errors.New("duplicate entry")
+)
+
 const mysqlDuplicateEntry = 1062
 
-// IsDuplicateKeyError checks if err is a MySQL duplicate key error.
-// Used to detect short code collisions and retry with a new code.
 func IsDuplicateKeyError(err error) bool {
 	var mysqlErr *mysql.MySQLError
 	if errors.As(err, &mysqlErr) {

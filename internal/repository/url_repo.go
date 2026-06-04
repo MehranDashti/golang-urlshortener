@@ -27,6 +27,9 @@ func (r *URLRepository) DB() *gorm.DB {
 func (r *URLRepository) Create(
 	ctx context.Context, url *model.URL) error {
 	if err := r.db.WithContext(ctx).Create(url).Error; err != nil {
+		if IsDuplicateKeyError(err) {
+			return fmt.Errorf("URLRepository.Create: %w", ErrDuplicate)
+		}
 		return fmt.Errorf("URLRepository.Create: %w", err)
 	}
 	return nil

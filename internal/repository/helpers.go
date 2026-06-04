@@ -2,14 +2,12 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
 )
 
-// findOne fetches a single record by condition.
-// T can be any GORM model — URL, User, etc.
-// Usage: findOne[model.URL](ctx, db, "short_code = ?", code)
 func findOne[T any](
 	ctx context.Context,
 	db *gorm.DB,
@@ -21,8 +19,8 @@ func findOne[T any](
 		Where(condition, args...).
 		First(&result).Error
 
-	if err == gorm.ErrRecordNotFound {
-		return nil, nil // not found — not an error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("findOne[%T]: %w", result, ErrNotFound)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("findOne[%T] %s: %w",
@@ -31,8 +29,6 @@ func findOne[T any](
 	return &result, nil
 }
 
-// findAll fetches all records matching condition.
-// Usage: findAll[model.URL](ctx, db, "user_id = ?", userID)
 func findAll[T any](
 	ctx context.Context,
 	db *gorm.DB,

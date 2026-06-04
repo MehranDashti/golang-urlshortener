@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"gorm.io/gorm"
 	"io"
@@ -143,7 +144,7 @@ func (s *URLService) ShortenURL(
 			return url, nil
 		}
 
-		if repository.IsDuplicateKeyError(err) {
+		if errors.Is(err, repository.ErrDuplicate) {
 			slog.Warn("short code collision — retrying",
 				"attempt", attempt,
 				"code", url.ShortCode,
@@ -172,10 +173,10 @@ func (s *URLService) GetByShortCode(
 
 	url, err := s.repo.FindByShortCode(ctx, code)
 	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, apperror.NotFound("short url not found")
+		}
 		return nil, apperror.InternalWithErr("something went wrong", err)
-	}
-	if url == nil {
-		return nil, apperror.NotFound("short url not found")
 	}
 	if url.ExpiresAt != nil && time.Now().After(*url.ExpiresAt) {
 		return nil, apperror.Gone("short url has expired")

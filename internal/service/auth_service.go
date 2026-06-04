@@ -2,16 +2,16 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"urlshortener/internal/apperror"
 	"urlshortener/internal/model"
+	"urlshortener/internal/repository"
 	"urlshortener/pkg/token"
 )
-
-// ── Interfaces ────────────────────────────────────────────────────────────────
 
 type UserRepository interface {
 	Create(ctx context.Context, user *model.User) error
@@ -21,8 +21,6 @@ type UserRepository interface {
 type TokenBlacklist interface {
 	Revoke(jti string, expiry time.Time)
 }
-
-// ── Types ─────────────────────────────────────────────────────────────────────
 
 type TokenPair struct {
 	AccessToken  string
@@ -35,8 +33,6 @@ type AuthService struct {
 	blacklist    TokenBlacklist
 }
 
-// ── Constructor ───────────────────────────────────────────────────────────────
-
 func NewAuthService(
 	repo UserRepository,
 	tokenManager *token.Manager,
@@ -48,14 +44,12 @@ func NewAuthService(
 	}
 }
 
-// ── Methods ───────────────────────────────────────────────────────────────────
-
 func (s *AuthService) Signup(
 	ctx context.Context,
 	email, password string) (*model.User, *apperror.AppError) {
 
 	existing, err := s.repo.FindByEmail(ctx, email)
-	if err != nil {
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
 		return nil, apperror.InternalWithErr("could not check email", err)
 	}
 	if existing != nil {
@@ -89,10 +83,10 @@ func (s *AuthService) Login(
 
 	user, err := s.repo.FindByEmail(ctx, email)
 	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, apperror.Unauthorized("invalid credentials")
+		}
 		return nil, apperror.InternalWithErr("could not find user", err)
-	}
-	if user == nil {
-		return nil, apperror.Unauthorized("invalid credentials")
 	}
 
 	err = bcrypt.CompareHashAndPassword(

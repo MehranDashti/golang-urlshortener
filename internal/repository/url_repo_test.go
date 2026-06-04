@@ -56,7 +56,7 @@ func TestFindByShortCode(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		found, err := repo.FindByShortCode(context.Background(), "xxxxxx") // ← add context
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, repository.ErrNotFound)
 		assert.Nil(t, found)
 	})
 }
@@ -89,7 +89,7 @@ func TestCreate_DuplicateShortCode(t *testing.T) {
 	}
 	url2 := &model.URL{
 		OriginalURL: "https://github.com",
-		ShortCode:   "abc123", // duplicate — should fail
+		ShortCode:   "abc123",
 		UserID:      "user-1",
 	}
 
@@ -97,12 +97,9 @@ func TestCreate_DuplicateShortCode(t *testing.T) {
 	assert.NoError(t, err1)
 
 	err2 := repo.Create(context.Background(), url2)
-	assert.Error(t, err2) // should fail
+	assert.Error(t, err2) 
 
-	// The error is wrapped — but we can still see the message
 	assert.Contains(t, err2.Error(), "URLRepository.Create")
-
-	// errors.Is walks the chain — even through our fmt.Errorf wrapper
-	// SQLite uses a different error so check the message instead
+	
 	t.Logf("wrapped error: %v", err2)
 }
