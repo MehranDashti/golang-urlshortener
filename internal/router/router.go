@@ -22,6 +22,7 @@ func Setup(
 	r.Use(middleware.Trace())
 	r.Use(middleware.Logger())
 	r.Use(gin.Recovery())
+	r.Use(middleware.ErrorHandler())
 	r.Use(globalLimiter)
 	r.Use(middleware.Timeout(30 * time.Second))
 

@@ -36,7 +36,7 @@ func NewAdminHandler(service AdminService) *AdminHandler {
 func (h *AdminHandler) ListLinks(c *gin.Context) {
 	urls, appErr := h.service.GetAllLinks(c.Request.Context())
 	if appErr != nil {
-		respondError(c, appErr)
+		c.Error(appErr)
 		return
 	}
 	respondData(c, http.StatusOK, "عملیات با موفقیت انجام شد", urls)
@@ -45,7 +45,7 @@ func (h *AdminHandler) ListLinks(c *gin.Context) {
 func (h *AdminHandler) DeleteLink(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		respondError(c, apperror.BadRequest("id is required"))
+		c.Error(apperror.BadRequest("id is required"))
 		return
 	}
 
@@ -60,7 +60,7 @@ func (h *AdminHandler) DeleteLink(c *gin.Context) {
 func (h *AdminHandler) ListUsers(c *gin.Context) {
 	users, appErr := h.service.GetAllUsers(c.Request.Context())
 	if appErr != nil {
-		respondError(c, appErr)
+		c.Error(appErr)
 		return
 	}
 
@@ -87,13 +87,13 @@ func (h *AdminHandler) ListUsers(c *gin.Context) {
 func (h *AdminHandler) DeleteUser(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		respondError(c, apperror.BadRequest("id is required"))
+		c.Error(apperror.BadRequest("id is required"))
 		return
 	}
 
 	if appErr := h.service.DeleteUser(
 		c.Request.Context(), id); appErr != nil {
-		respondError(c, appErr)
+		c.Error(appErr)
 		return
 	}
 
@@ -104,7 +104,7 @@ func (h *AdminHandler) Dashboard(c *gin.Context) {
 	data, appErr := h.service.GetDashboard(
 		c.Request.Context())
 	if appErr != nil {
-		respondError(c, appErr)
+		c.Error(appErr)
 		return
 	}
 
@@ -139,14 +139,14 @@ func (h *AdminHandler) ExportLinksCSV(c *gin.Context) {
 func (h *AdminHandler) ListLinksPaginated(c *gin.Context) {
 	params, appErr := parsePagination(c)
 	if appErr != nil {
-		respondError(c, appErr)
+		c.Error(appErr)
 		return
 	}
 
 	result, appErr := h.service.GetAllLinksPaginated(
 		c.Request.Context(), params)
 	if appErr != nil {
-		respondError(c, appErr)
+		c.Error(appErr)
 		return
 	}
 
@@ -157,7 +157,7 @@ func (h *AdminHandler) ListLinksPaginated(c *gin.Context) {
 func (h *AdminHandler) ListUsersPaginated(c *gin.Context) {
 	params, appErr := parsePagination(c)
 	if appErr != nil {
-		respondError(c, appErr)
+		c.Error(appErr)
 		return
 	}
 
@@ -172,7 +172,7 @@ func (h *AdminHandler) ListUsersPaginated(c *gin.Context) {
 	result, appErr := h.service.GetAllUsersPaginated(
 		c.Request.Context(), params)
 	if appErr != nil {
-		respondError(c, appErr)
+		c.Error(appErr)
 		return
 	}
 

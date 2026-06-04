@@ -75,6 +75,7 @@ func setupRouter(svc handler.URLService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	h := handler.NewURLHandler(svc, "http://localhost:8080")
 	r := gin.New()
+	r.Use(middleware.ErrorHandler())
 
 	fakeAuth := func(c *gin.Context) {
 		c.Set(middleware.UserIDKey, "test-user-id")
