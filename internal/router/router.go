@@ -22,9 +22,10 @@ func Setup(
     clientLimiter  gin.HandlerFunc,
 ) *gin.Engine {
     r := gin.New()
+    r.Use(middleware.Trace())   
     r.Use(middleware.Logger())
     r.Use(gin.Recovery())
-    r.Use(globalLimiter)                        // ← all routes
+    r.Use(globalLimiter)
     r.Use(middleware.Timeout(30 * time.Second))
 
     r.GET("/health", healthHandler.Check)

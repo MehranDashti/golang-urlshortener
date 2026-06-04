@@ -15,6 +15,7 @@ import (
     "urlshortener/internal/model"
     "urlshortener/internal/util"
     "urlshortener/internal/repository"
+    "urlshortener/internal/trace"
 )
 
 type URLRepository interface {
@@ -121,16 +122,14 @@ func (s *URLService) ShortenURL(
     userID string,
     expiresAt *time.Time) (*model.URL, *apperror.AppError) {
 
-    // Normalise URL before storing
     normalised, err := util.NormaliseURL(originalURL)
     if err != nil {
-        return nil, apperror.BadRequest(
-            "invalid URL: " + err.Error())
+        return nil, apperror.BadRequest("invalid URL: " + err.Error())
     }
 
     url := &model.URL{
         UserID:      userID,
-        OriginalURL: normalised, // ← store normalised form
+        OriginalURL: normalised,
         ExpiresAt:   expiresAt,
     }
 
@@ -144,16 +143,18 @@ func (s *URLService) ShortenURL(
 
         if repository.IsDuplicateKeyError(err) {
             slog.Warn("short code collision — retrying",
-                "attempt", attempt,
-                "code",    url.ShortCode,
+                "attempt",  attempt,
+                "code",     url.ShortCode,
+                "trace_id", trace.FromContext(ctx), // ← trace ID in every log
             )
             continue
         }
 
         slog.Error("ShortenURL failed",
-            "error",  err,
-            "url",    normalised,
-            "userID", userID,
+            "error",    err,
+            "url",      normalised,
+            "userID",   userID,
+            "trace_id", trace.FromContext(ctx), // ← trace ID in every log
         )
         return nil, apperror.InternalWithErr(
             "could not create short url", err)
