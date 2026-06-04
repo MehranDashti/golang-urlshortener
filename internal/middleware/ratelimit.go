@@ -103,8 +103,13 @@ func (rl *RateLimiter) cleanupLoop() {
 
 func (rl *RateLimiter) Middleware() gin.HandlerFunc {
     return func(c *gin.Context) {
-        ip := c.ClientIP()
-        if !rl.allow(ip) {
+        // Use user ID if authenticated, fall back to IP
+        key := c.ClientIP()
+        if userID, exists := c.Get(UserIDKey); exists {
+            key = "user:" + userID.(string)
+        }
+
+        if !rl.allow(key) {
             c.JSON(http.StatusTooManyRequests,
                 map[string]interface{}{
                     "success": false,
@@ -118,7 +123,6 @@ func (rl *RateLimiter) Middleware() gin.HandlerFunc {
     }
 }
 
-// Allow is exported for benchmarks and testing.
-func (rl *RateLimiter) Allow(ip string) bool {
-    return rl.allow(ip)
+func (rl *RateLimiter) Allow(key string) bool {
+    return rl.allow(key)
 }

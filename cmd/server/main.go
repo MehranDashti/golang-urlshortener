@@ -64,15 +64,21 @@ func main() {
     healthHandler := handler.NewHealthHandler(db)
 
     authMiddleware := middleware.Auth(tokenManager, blacklist)
-    rateLimiter    := middleware.NewRateLimiter(60, time.Minute)
+
+    // Three limiters with different configs
+    globalLimiter := middleware.NewRateLimiter(100, time.Minute)  // 100/min per IP
+    authLimiter   := middleware.NewRateLimiter(10, time.Minute)   // 10/min per IP — brute force
+    clientLimiter := middleware.NewRateLimiter(60, time.Minute)   // 60/min per user
 
     r := router.Setup(
         urlHandler,
         authHandler,
         adminHandler,
-        healthHandler, 
+        healthHandler,
         authMiddleware,
-        rateLimiter.Middleware(),
+        globalLimiter.Middleware(),
+        authLimiter.Middleware(),
+        clientLimiter.Middleware(),
     )
 
     // Create http.Server manually — we need it for Shutdown()
