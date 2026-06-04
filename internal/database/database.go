@@ -2,6 +2,8 @@ package database
 
 import (
 	"log/slog"
+	"fmt"
+	"time"
 	"sync"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -26,6 +28,10 @@ func Connect(dsn string) *gorm.DB {
 		})
 		if err != nil {
 			panic("failed to connect to database: " + err.Error())
+		}
+
+		if err := applyPoolSettings(gormDB); err != nil {
+			panic("failed to configure connection pool: " + err.Error())
 		}
 
 		if err := runMigrations(gormDB); err != nil {
@@ -70,5 +76,19 @@ func runMigrations(db *gorm.DB) error {
 
 	version, _, _ := m.Version()
 	slog.Info("migrations applied", "version", version)
+	return nil
+}
+
+func applyPoolSettings(db *gorm.DB) error {
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("get underlying sql.DB: %w", err)
+	}
+
+	sqlDB.SetMaxOpenConns(25)
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetConnMaxLifetime(5 * time.Minute)
+	sqlDB.SetConnMaxIdleTime(10 * time.Minute)
+
 	return nil
 }
