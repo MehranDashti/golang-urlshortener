@@ -2,7 +2,6 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
-	"urlshortener/internal/apperror"
 )
 
 type APIResponse struct {
@@ -27,13 +26,4 @@ func respondData[T any](c *gin.Context, code int, message string, data T) {
 // delegates to respondData
 func respondSuccess(c *gin.Context, code int, message string, data interface{}) {
 	respondData(c, code, message, data)
-}
-
-func respondError(c *gin.Context, err *apperror.AppError) {
-	c.JSON(err.Code, APIResponse{
-		Success: false,
-		Code:    err.Code,
-		Message: err.Message,
-		Error:   err.Details,
-	})
 }

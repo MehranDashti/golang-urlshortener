@@ -59,6 +59,9 @@ func (m *mockAdminURLRepo) FindAllPaginated(
 	params model.PaginationParams) ([]*model.URL, int64, error) {
 	return []*model.URL{}, 0, nil
 }
+func (m *mockAdminURLRepo) TopLinks(_ context.Context, _ int) ([]*model.URL, error) {
+	return nil, nil
+}
 
 // ── mockAdminUserRepo ─────────────────────────────────────────────────────────
 type mockAdminUserRepo struct {

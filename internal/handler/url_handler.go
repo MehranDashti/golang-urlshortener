@@ -40,13 +40,13 @@ func NewURLHandler(service URLService, baseURL string) *URLHandler {
 func (h *URLHandler) Shorten(c *gin.Context) {
 	var req ShortenRequest
 	if appErr := bindAndValidate(c, &req); appErr != nil {
-		c.Error(appErr)
+		_ = c.Error(appErr)
 		return
 	}
 
 	userID, exists := c.Get(middleware.UserIDKey)
 	if !exists {
-		c.Error(apperror.Unauthorized("not authenticated"))
+		_ = c.Error(apperror.Unauthorized("not authenticated"))
 		return
 	}
 
@@ -54,7 +54,7 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 	if req.ExpiresAt != nil {
 		t, err := time.Parse(time.RFC3339, *req.ExpiresAt)
 		if err != nil {
-			c.Error(apperror.BadRequest("invalid expires_at format, use RFC3339: 2006-01-02T15:04:05Z"))
+			_ = c.Error(apperror.BadRequest("invalid expires_at format, use RFC3339: 2006-01-02T15:04:05Z"))
 			return
 		}
 		expiresAt = &t
@@ -67,7 +67,7 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 		expiresAt,
 	)
 	if appErr != nil {
-		c.Error(appErr)
+		_ = c.Error(appErr)
 		return
 	}
 
@@ -84,7 +84,7 @@ func (h *URLHandler) Redirect(c *gin.Context) {
 	url, appErr := h.service.GetByShortCode(
 		c.Request.Context(), code)
 	if appErr != nil {
-		c.Error(appErr)
+		_ = c.Error(appErr)
 		return
 	}
 
@@ -94,13 +94,13 @@ func (h *URLHandler) Redirect(c *gin.Context) {
 func (h *URLHandler) ListLinks(c *gin.Context) {
 	userID, exists := c.Get(middleware.UserIDKey)
 	if !exists {
-		c.Error(apperror.Unauthorized("not authenticated"))
+		_ = c.Error(apperror.Unauthorized("not authenticated"))
 		return
 	}
 	urls, appErr := h.service.GetUserLinks(
 		c.Request.Context(), userID.(string))
 	if appErr != nil {
-		c.Error(appErr)
+		_ = c.Error(appErr)
 		return
 	}
 
@@ -110,20 +110,20 @@ func (h *URLHandler) ListLinks(c *gin.Context) {
 func (h *URLHandler) ListLinksPaginated(c *gin.Context) {
 	userID, exists := c.Get(middleware.UserIDKey)
 	if !exists {
-		c.Error(apperror.Unauthorized("not authenticated"))
+		_ = c.Error(apperror.Unauthorized("not authenticated"))
 		return
 	}
 
 	params, appErr := parsePagination(c)
 	if appErr != nil {
-		c.Error(appErr)
+		_ = c.Error(appErr)
 		return
 	}
 
 	result, appErr := h.service.GetUserLinksPaginated(
 		c.Request.Context(), userID.(string), params)
 	if appErr != nil {
-		c.Error(appErr)
+		_ = c.Error(appErr)
 		return
 	}
 
@@ -138,7 +138,7 @@ func (h *URLHandler) BulkShorten(c *gin.Context) {
 	}
 
 	if appErr := bindAndValidate(c, &body); appErr != nil {
-		c.Error(appErr)
+		_ = c.Error(appErr)
 		return
 	}
 
@@ -149,7 +149,7 @@ func (h *URLHandler) BulkShorten(c *gin.Context) {
 
 	userID, exists := c.Get(middleware.UserIDKey)
 	if !exists {
-		c.Error(apperror.Unauthorized("not authenticated"))
+		_ = c.Error(apperror.Unauthorized("not authenticated"))
 		return
 	}
 
@@ -167,14 +167,14 @@ func (h *URLHandler) BulkShorten(c *gin.Context) {
 func (h *URLHandler) ImportLinks(c *gin.Context) {
 	userID, exists := c.Get(middleware.UserIDKey)
 	if !exists {
-		c.Error(apperror.Unauthorized("not authenticated"))
+		_ = c.Error(apperror.Unauthorized("not authenticated"))
 		return
 	}
 
 	// Get the uploaded file
 	file, _, err := c.Request.FormFile("file")
 	if err != nil {
-		c.Error(apperror.BadRequest(
+		_ = c.Error(apperror.BadRequest(
 			"file is required — send as multipart/form-data"))
 		return
 	}
@@ -184,7 +184,7 @@ func (h *URLHandler) ImportLinks(c *gin.Context) {
 	results, err := h.service.ImportLinksCSV(
 		c.Request.Context(), file, userID.(string))
 	if err != nil {
-		c.Error(apperror.InternalWithErr("import failed", err))
+		_ = c.Error(apperror.InternalWithErr("import failed", err))
 		return
 	}
 

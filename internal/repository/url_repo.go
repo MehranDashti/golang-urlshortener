@@ -148,3 +148,21 @@ func (r *URLRepository) FindAllPaginated(
 
 	return urls, total, nil
 }
+
+func (r *URLRepository) TopLinks(
+	ctx context.Context, limit int) ([]*model.URL, error) {
+ 
+	var urls []*model.URL
+ 
+	result := r.db.WithContext(ctx).Raw(`
+		SELECT id, user_id, original_url, short_code,
+		       clicks, expires_at, created_at, updated_at
+		FROM urls
+		ORDER BY clicks DESC
+		LIMIT ?`, limit).Scan(&urls)
+ 
+	if result.Error != nil {
+		return nil, fmt.Errorf("URLRepository.TopLinks: %w", result.Error)
+	}
+	return urls, nil
+}

@@ -31,6 +31,7 @@ type AdminURLRepository interface {
 	DeleteByUserID(ctx context.Context, userID string) error
 	WithTx(tx *gorm.DB) *repository.URLRepository
 	DB() *gorm.DB
+	TopLinks(ctx context.Context, limit int) ([]*model.URL, error)
 }
 
 type AdminUserRepository interface {
@@ -51,6 +52,12 @@ type DBTransactor struct {
 	db *gorm.DB
 }
 
+type DashboardData struct {
+    Links    []*model.URL
+    Users    []*model.User
+    TopLinks []*model.URL  // ← add this
+}
+
 func NewDBTransactor(db *gorm.DB) *DBTransactor {
 	return &DBTransactor{db: db}
 }
@@ -65,11 +72,6 @@ type AdminService struct {
 	urlRepo    AdminURLRepository
 	userRepo   AdminUserRepository
 	transactor Transactor
-}
-
-type DashboardData struct {
-	Links []*model.URL
-	Users []*model.User
 }
 
 func NewAdminService(
@@ -142,8 +144,7 @@ func (s *AdminService) DeleteUser(
 	return nil
 }
 
-// GetDashboard fetches links and users concurrently.
-// If either fails the whole operation fails fast.
+
 func (s *AdminService) GetDashboard(
 	ctx context.Context) (*DashboardData, *apperror.AppError) {
 
@@ -155,7 +156,7 @@ func (s *AdminService) GetDashboard(
 		if err != nil {
 			return fmt.Errorf("fetch links: %w", err)
 		}
-		data.Links = links // safe — only this goroutine writes Links
+		data.Links = links
 		return nil
 	})
 
@@ -164,7 +165,16 @@ func (s *AdminService) GetDashboard(
 		if err != nil {
 			return fmt.Errorf("fetch users: %w", err)
 		}
-		data.Users = users // safe — only this goroutine writes Users
+		data.Users = users
+		return nil
+	})
+
+	g.Go(func() error {
+		top, err := s.urlRepo.TopLinks(gCtx, 5)
+		if err != nil {
+			return fmt.Errorf("fetch top links: %w", err)
+		}
+		data.TopLinks = top
 		return nil
 	})
 

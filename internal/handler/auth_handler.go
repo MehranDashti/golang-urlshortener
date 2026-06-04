@@ -31,14 +31,14 @@ func NewAuthHandler(service AuthService) *AuthHandler {
 func (h *AuthHandler) Signup(c *gin.Context) {
 	var req SignupRequest
 	if appErr := bindAndValidate(c, &req); appErr != nil {
-		c.Error(appErr)
+		_ = c.Error(appErr)
 		return
 	}
 
 	user, appErr := h.service.Signup(
 		c.Request.Context(), req.Email, req.Password)
 	if appErr != nil {
-		c.Error(appErr)
+		_ = c.Error(appErr)
 		return
 	}
 
@@ -51,14 +51,14 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
 	if appErr := bindAndValidate(c, &req); appErr != nil {
-		c.Error(appErr)
+		_ = c.Error(appErr)
 		return
 	}
 
 	pair, appErr := h.service.Login(
 		c.Request.Context(), req.Email, req.Password)
 	if appErr != nil {
-		c.Error(appErr)
+		_ = c.Error(appErr)
 		return
 	}
 
@@ -73,13 +73,13 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		RefreshToken string `json:"refresh_token" validate:"required"`
 	}
 	if appErr := bindAndValidate(c, &body); appErr != nil {
-		c.Error(appErr)
+		_ = c.Error(appErr)
 		return
 	}
 
 	pair, appErr := h.service.Refresh(body.RefreshToken)
 	if appErr != nil {
-		c.Error(appErr)
+		_ = c.Error(appErr)
 		return
 	}
 
@@ -93,20 +93,20 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	// Extract token from header
 	authHeader := c.GetHeader("Authorization")
 	if authHeader == "" {
-		c.Error(apperror.BadRequest(
+		_ = c.Error(apperror.BadRequest(
 			"authorization header required"))
 		return
 	}
 
 	parts := strings.SplitN(authHeader, " ", 2)
 	if len(parts) != 2 || parts[0] != "Bearer" {
-		c.Error(apperror.BadRequest(
+		_ = c.Error(apperror.BadRequest(
 			"invalid authorization format"))
 		return
 	}
 
 	if appErr := h.service.Logout(parts[1]); appErr != nil {
-		c.Error(appErr)
+		_ = c.Error(appErr)
 		return
 	}
 
