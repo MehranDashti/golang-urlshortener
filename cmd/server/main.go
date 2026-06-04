@@ -41,11 +41,13 @@ func main() {
         context.Background())
     defer workerCancel() // cancels all workers on shutdown
 
+    transactor   := service.NewDBTransactor(db)
+
     urlRepo      := repository.NewURLRepository(db)
     userRepo     := repository.NewUserRepository(db)
     urlService := service.NewURLService(urlRepo, workerCtx)
     authService  := service.NewAuthService(userRepo, tokenManager)
-    adminService := service.NewAdminService(urlRepo, userRepo)
+    adminService := service.NewAdminService(urlRepo, userRepo, transactor)
 
     urlHandler   := handler.NewURLHandler(urlService, cfg.BaseURL)
     authHandler  := handler.NewAuthHandler(authService)

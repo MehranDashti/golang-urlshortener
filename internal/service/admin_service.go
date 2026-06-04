@@ -19,7 +19,7 @@ type AdminURLRepository interface {
     FindAll(ctx context.Context) ([]*model.URL, error)
     Delete(ctx context.Context, id string) error
     DeleteByUserID(ctx context.Context, userID string) error
-   WithTx(tx *gorm.DB) *repository.URLRepository
+    WithTx(tx *gorm.DB) *repository.URLRepository
     DB() *gorm.DB                              
 }
 
@@ -30,9 +30,29 @@ type AdminUserRepository interface {
     DB() *gorm.DB                              
 }
 
+type Transactor interface {
+    Transaction(ctx context.Context,
+        fn func(tx *gorm.DB) error) error
+}
+
+type DBTransactor struct {
+    db *gorm.DB
+}
+
+func NewDBTransactor(db *gorm.DB) *DBTransactor {
+    return &DBTransactor{db: db}
+}
+
+func (t *DBTransactor) Transaction(
+    ctx context.Context,
+    fn func(tx *gorm.DB) error) error {
+    return t.db.WithContext(ctx).Transaction(fn)
+}
+
 type AdminService struct {
     urlRepo  AdminURLRepository
     userRepo AdminUserRepository
+    transactor Transactor
 }
 
 type DashboardData struct {
@@ -42,8 +62,13 @@ type DashboardData struct {
 
 func NewAdminService(
     urlRepo AdminURLRepository,
-    userRepo AdminUserRepository) *AdminService {
-    return &AdminService{urlRepo: urlRepo, userRepo: userRepo}
+    userRepo AdminUserRepository,
+    transactor Transactor) *AdminService {
+    return &AdminService{
+        urlRepo:    urlRepo,
+        userRepo:   userRepo,
+        transactor: transactor,
+    }
 }
 
 func (s *AdminService) GetAllLinks(
@@ -82,29 +107,18 @@ func (s *AdminService) DeleteUser(
     ctx context.Context,
     userID string) *apperror.AppError {
 
-    // db.Transaction handles BEGIN, COMMIT, ROLLBACK automatically
-    // Return error → rollback
-    // Return nil → commit
-    err := s.urlRepo.DB().WithContext(ctx).
-        Transaction(func(tx *gorm.DB) error {
-
-            // Both operations use the SAME transaction (tx)
+    err := s.transactor.Transaction(ctx,
+        func(tx *gorm.DB) error {
             urlRepo  := s.urlRepo.WithTx(tx)
             userRepo := s.userRepo.WithTx(tx)
 
-            // Delete links first (foreign key constraint)
             if err := urlRepo.DeleteByUserID(ctx, userID); err != nil {
                 return fmt.Errorf("delete links: %w", err)
-                // ↑ returning error triggers automatic ROLLBACK
             }
-
-            // Delete user
             if err := userRepo.Delete(ctx, userID); err != nil {
                 return fmt.Errorf("delete user: %w", err)
-                // ↑ links delete is rolled back too
             }
-
-            return nil // ← triggers COMMIT
+            return nil
         })
 
     if err != nil {
@@ -113,7 +127,6 @@ func (s *AdminService) DeleteUser(
         return apperror.InternalWithErr(
             "could not delete user", err)
     }
-
     return nil
 }
 

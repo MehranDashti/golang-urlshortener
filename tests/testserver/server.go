@@ -26,6 +26,19 @@ type TestServer struct {
     DB     *gorm.DB
 }
 
+type mockTransactor struct {
+    transactFn func(ctx context.Context, fn func(tx *gorm.DB) error) error
+}
+
+func (m *mockTransactor) Transaction(ctx context.Context,
+    fn func(tx *gorm.DB) error) error {
+    if m.transactFn != nil {
+        return m.transactFn(ctx, fn)
+    }
+    // Default — execute fn with nil tx (for simple tests)
+    return fn(nil)
+}
+
 func New() *TestServer {
     _, filename, _, _ := runtime.Caller(0)
     root := filepath.Join(filepath.Dir(filename), "../..")
@@ -56,11 +69,13 @@ func New() *TestServer {
         7*24*time.Hour,
     )
 
+    transactor   := service.NewDBTransactor(db)
+
     urlRepo     := repository.NewURLRepository(db)
     userRepo    := repository.NewUserRepository(db)
     urlService := service.NewURLService(urlRepo, context.Background())
     authService := service.NewAuthService(userRepo, tokenManager)
-    adminService := service.NewAdminService(urlRepo, userRepo)
+    adminService := service.NewAdminService(urlRepo, userRepo, transactor)
 
     urlHandler   := handler.NewURLHandler(urlService, "http://localhost:8080")
     authHandler  := handler.NewAuthHandler(authService)
