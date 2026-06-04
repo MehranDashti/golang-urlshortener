@@ -1,6 +1,7 @@
-SHELL   := /bin/bash
-MIGRATE := $(shell go env GOPATH)/bin/migrate
-BINARY  := bin/server
+SHELL    := /bin/bash
+MIGRATE  := $(shell go env GOPATH)/bin/migrate
+GOLANGCI := $(shell go env GOPATH)/bin/golangci-lint
+BINARY   := bin/server
 
 ifneq (,$(wildcard .env))
     include .env
@@ -9,7 +10,9 @@ endif
 
 DB_URL=mysql://$(DB_USER):$(DB_PASS)@tcp($(DB_HOST):$(DB_PORT))/$(DB_NAME)
 
-.PHONY: run run-pprof build build-pprof test test-v test-short \
+.PHONY: run run-pprof build build-pprof \
+        lint lint-fix fmt fmt-check \
+        test test-v test-short \
         test-unit test-integration test-race test-race-v \
         test-race-integration test-all \
         bench bench-util bench-middleware bench-race \
@@ -17,6 +20,20 @@ DB_URL=mysql://$(DB_USER):$(DB_PASS)@tcp($(DB_HOST):$(DB_PORT))/$(DB_NAME)
         docker-build docker-up docker-down docker-logs docker-clean \
         profile-cpu profile-heap profile-goroutines \
         clean help
+
+# ── Linting ───────────────────────────────────────────────────────
+
+lint:
+	$(GOLANGCI) run ./...
+
+lint-fix:
+	$(GOLANGCI) run --fix ./...
+
+fmt:
+	$(GOLANGCI) fmt ./...
+
+fmt-check:
+	$(GOLANGCI) fmt --diff ./...
 
 # ── Development ───────────────────────────────────────────────────
 
@@ -133,6 +150,12 @@ profile-goroutines:
 help:
 	@echo ""
 	@echo "Usage: make <command>"
+	@echo ""
+	@echo "Linting:"
+	@echo "  lint                 Run golangci-lint (staticcheck, errcheck, revive, ...)"
+	@echo "  lint-fix             Run golangci-lint and auto-fix what it can"
+	@echo "  fmt                  Format code (gofmt + goimports)"
+	@echo "  fmt-check            Show formatting diff without writing"
 	@echo ""
 	@echo "Development:"
 	@echo "  run                  Start server locally"

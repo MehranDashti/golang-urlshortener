@@ -1,0 +1,46 @@
+# golangci-lint v2 configuration
+# Run linters:    golangci-lint run ./...   (make lint)
+# Run formatters: golangci-lint fmt ./...   (make fmt)
+version: "2"
+
+linters:
+  # "standard" = errcheck, govet, ineffassign, staticcheck, unused.
+  # (In v2, gosimple + stylecheck were folded into staticcheck.)
+  default: standard
+  enable:
+    - revive          # golint's successor: style & convention checks
+
+  settings:
+    revive:
+      rules:
+        - name: exported          # exported identifiers need doc comments
+        - name: error-strings     # error strings: lowercase, no trailing punctuation
+        - name: var-naming        # initialisms: ID, URL, HTTP, JSON, ...
+        - name: indent-error-flow # prefer early return over else-after-return
+        - name: unexported-return # don't return unexported types from exported funcs
+
+  exclusions:
+    generated: lax          # be lenient on generated files
+    warn-unused: true       # tell us if an exclusion rule never fires
+    presets:
+      - comments
+      - std-error-handling
+      - common-false-positives
+      - legacy
+    rules:
+      # Tests may ignore some errors for brevity.
+      - path: _test\.go
+        linters:
+          - errcheck
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      # Groups your own packages into a separate import block.
+      local-prefixes:
+        - urlshortener

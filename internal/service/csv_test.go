@@ -37,10 +37,10 @@ func (m *mockURLRepoCSV) FindByUserID(ctx context.Context, userID string) ([]*mo
 func (m *mockURLRepoCSV) FindByUserIDPaginated(ctx context.Context, userID string, params model.PaginationParams) ([]*model.URL, int64, error) {
 	return nil, 0, nil
 }
-func (m *mockURLRepoCSV) Delete(ctx context.Context, id string) error         { return nil }
+func (m *mockURLRepoCSV) Delete(ctx context.Context, id string) error             { return nil }
 func (m *mockURLRepoCSV) DeleteByUserID(ctx context.Context, userID string) error { return nil }
-func (m *mockURLRepoCSV) WithTx(_ *gorm.DB) *repository.URLRepository         { return nil }
-func (m *mockURLRepoCSV) DB() *gorm.DB                                         { return nil }
+func (m *mockURLRepoCSV) WithTx(_ *gorm.DB) *repository.URLRepository             { return nil }
+func (m *mockURLRepoCSV) DB() *gorm.DB                                            { return nil }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
