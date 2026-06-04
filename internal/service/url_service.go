@@ -8,11 +8,13 @@ import (
     "context"
     "time"
     "sync"
+    "gorm.io/gorm"
     
     "urlshortener/internal/apperror"
     "urlshortener/internal/worker"
     "urlshortener/internal/model"
     "urlshortener/internal/util"
+    "urlshortener/internal/repository"
 )
 
 type URLRepository interface {
@@ -22,6 +24,8 @@ type URLRepository interface {
     FindByUserID(ctx context.Context, userID string) ([]*model.URL, error)
     FindByUserIDPaginated(ctx context.Context, userID string,
         params model.PaginationParams) ([]*model.URL, int64, error)
+    WithTx(tx *gorm.DB) *repository.URLRepository
+    DB() *gorm.DB                           
 }
 
 type URLService struct {
@@ -167,8 +171,6 @@ func (s *URLService) GetUserLinksPaginated(
     return &result, nil
 }
 
-// BulkShorten shortens multiple URLs concurrently using a worker pool.
-// numWorkers controls how many DB writes happen simultaneously.
 func (s *URLService) BulkShorten(
     ctx context.Context,
     urls []string,
@@ -176,53 +178,69 @@ func (s *URLService) BulkShorten(
     numWorkers int,
 ) []BulkShortenResult {
 
-    // Create pool — T=string (URL), R=BulkShortenResult
-    pool := worker.NewPool[string, BulkShortenResult](
-        numWorkers,
-        len(urls), // buffer = number of jobs
-        func(ctx context.Context,
-            job worker.Job[string]) (BulkShortenResult, error) {
-
-            url := &model.URL{
-                UserID:      userID,
-                OriginalURL: job.Payload,
-                ShortCode:   util.GenerateShortCode(),
-            }
-
-            if err := s.repo.Create(ctx, url); err != nil {
-                return BulkShortenResult{
-                    OriginalURL: job.Payload,
-                    Error:       "could not create short url",
-                }, err
-            }
-
-            return BulkShortenResult{
-                OriginalURL: job.Payload,
-                ShortCode:   url.ShortCode,
-            }, nil
-        },
-    )
-
-    // Start workers
-    pool.Start(ctx)
-
-    // Submit all jobs
-    for i, url := range urls {
-        pool.Submit(worker.Job[string]{
-            ID:      fmt.Sprintf("job-%d", i),
-            Payload: url,
-        })
-    }
-
-    // Signal no more jobs — workers will exit after draining
-    // Run in goroutine because Close() blocks until workers finish
-    // but we also need to read results — deadlock if we block here
-    go pool.Close()
-
-    // Collect results
     results := make([]BulkShortenResult, 0, len(urls))
-    for result := range pool.Results() {
-        results = append(results, result.Value)
+
+    // Wrap all creates in a single transaction
+    // If any URL fails to create — all are rolled back
+    err := s.repo.DB().WithContext(ctx).
+        Transaction(func(tx *gorm.DB) error {
+            txRepo := s.repo.WithTx(tx)
+
+            pool := worker.NewPool[string, BulkShortenResult](
+                numWorkers,
+                len(urls),
+                func(ctx context.Context,
+                    job worker.Job[string]) (BulkShortenResult, error) {
+
+                    url := &model.URL{
+                        UserID:      userID,
+                        OriginalURL: job.Payload,
+                        ShortCode:   util.GenerateShortCode(),
+                    }
+
+                    if err := txRepo.Create(ctx, url); err != nil {
+                        return BulkShortenResult{
+                            OriginalURL: job.Payload,
+                            Error:       "could not create short url",
+                        }, err
+                    }
+
+                    return BulkShortenResult{
+                        OriginalURL: job.Payload,
+                        ShortCode:   url.ShortCode,
+                    }, nil
+                },
+            )
+
+            pool.Start(ctx)
+
+            for i, url := range urls {
+                pool.Submit(worker.Job[string]{
+                    ID:      fmt.Sprintf("job-%d", i),
+                    Payload: url,
+                })
+            }
+
+            go pool.Close()
+
+            for result := range pool.Results() {
+                results = append(results, result.Value)
+                if result.Err != nil {
+                    return fmt.Errorf(
+                        "bulk shorten failed at %s: %w",
+                        result.Value.OriginalURL, result.Err)
+                }
+            }
+
+            return nil
+        })
+
+    if err != nil {
+        slog.Error("BulkShorten transaction failed", "error", err)
+        // Return results with error marker
+        return []BulkShortenResult{{
+            Error: "bulk operation failed — all URLs rolled back",
+        }}
     }
 
     return results

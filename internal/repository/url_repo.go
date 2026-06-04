@@ -16,6 +16,14 @@ func NewURLRepository(db *gorm.DB) *URLRepository {
     return &URLRepository{db: db}
 }
 
+func (r *URLRepository) WithTx(tx *gorm.DB) *URLRepository {
+    return &URLRepository{db: tx}
+}
+
+func (r *URLRepository) DB() *gorm.DB {
+    return r.db
+}
+
 func (r *URLRepository) Create(
     ctx context.Context, url *model.URL) error {
     if err := r.db.WithContext(ctx).Create(url).Error; err != nil {

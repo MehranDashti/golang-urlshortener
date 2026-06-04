@@ -1,6 +1,7 @@
 package service
 
 import (
+    "gorm.io/gorm"
     "encoding/csv"
     "io"
     "time"
@@ -11,17 +12,22 @@ import (
     "golang.org/x/sync/errgroup"
     "urlshortener/internal/apperror"
     "urlshortener/internal/model"
+    "urlshortener/internal/repository"
 )
 
 type AdminURLRepository interface {
     FindAll(ctx context.Context) ([]*model.URL, error)
     Delete(ctx context.Context, id string) error
     DeleteByUserID(ctx context.Context, userID string) error
+   WithTx(tx *gorm.DB) *repository.URLRepository
+    DB() *gorm.DB                              
 }
 
 type AdminUserRepository interface {
     FindAll(ctx context.Context) ([]*model.User, error)
     Delete(ctx context.Context, id string) error
+    WithTx(tx *gorm.DB) *repository.UserRepository
+    DB() *gorm.DB                              
 }
 
 type AdminService struct {
@@ -76,31 +82,34 @@ func (s *AdminService) DeleteUser(
     ctx context.Context,
     userID string) *apperror.AppError {
 
-    // errgroup.WithContext — if either goroutine fails,
-    // the context is cancelled so the other can stop early
-    g, gCtx := errgroup.WithContext(ctx)
+    // db.Transaction handles BEGIN, COMMIT, ROLLBACK automatically
+    // Return error → rollback
+    // Return nil → commit
+    err := s.urlRepo.DB().WithContext(ctx).
+        Transaction(func(tx *gorm.DB) error {
 
-    // Delete all user's links
-    g.Go(func() error {
-        if err := s.urlRepo.DeleteByUserID(gCtx, userID); err != nil {
-            return fmt.Errorf("delete links for user %s: %w",
-                userID, err)
-        }
-        return nil
-    })
+            // Both operations use the SAME transaction (tx)
+            urlRepo  := s.urlRepo.WithTx(tx)
+            userRepo := s.userRepo.WithTx(tx)
 
-    // Delete the user account
-    g.Go(func() error {
-        if err := s.userRepo.Delete(gCtx, userID); err != nil {
-            return fmt.Errorf("delete user %s: %w", userID, err)
-        }
-        return nil
-    })
+            // Delete links first (foreign key constraint)
+            if err := urlRepo.DeleteByUserID(ctx, userID); err != nil {
+                return fmt.Errorf("delete links: %w", err)
+                // ↑ returning error triggers automatic ROLLBACK
+            }
 
-    // Wait — returns first non-nil error or nil if all succeeded
-    if err := g.Wait(); err != nil {
-        slog.Error("DeleteUser failed", "error", err,
-            "userID", userID)
+            // Delete user
+            if err := userRepo.Delete(ctx, userID); err != nil {
+                return fmt.Errorf("delete user: %w", err)
+                // ↑ links delete is rolled back too
+            }
+
+            return nil // ← triggers COMMIT
+        })
+
+    if err != nil {
+        slog.Error("DeleteUser transaction failed",
+            "error", err, "userID", userID)
         return apperror.InternalWithErr(
             "could not delete user", err)
     }
