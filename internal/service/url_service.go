@@ -102,45 +102,44 @@ func (s *URLService) ShortenURL(
     userID string,
     expiresAt *time.Time) (*model.URL, *apperror.AppError) {
 
+    // Normalise URL before storing
+    normalised, err := util.NormaliseURL(originalURL)
+    if err != nil {
+        return nil, apperror.BadRequest(
+            "invalid URL: " + err.Error())
+    }
+
     url := &model.URL{
         UserID:      userID,
-        OriginalURL: originalURL,
+        OriginalURL: normalised, // ← store normalised form
         ExpiresAt:   expiresAt,
     }
 
-    // Retry up to maxShortCodeAttempts times on collision
     for attempt := 1; attempt <= maxShortCodeAttempts; attempt++ {
         url.ShortCode = util.GenerateShortCode()
 
         err := s.repo.Create(ctx, url)
         if err == nil {
-            return url, nil // success
+            return url, nil
         }
 
-        // Unwrap to check if it's a duplicate key error
         if repository.IsDuplicateKeyError(err) {
             slog.Warn("short code collision — retrying",
                 "attempt", attempt,
                 "code",    url.ShortCode,
             )
-            continue // try again with a new code
+            continue
         }
 
-        // Any other error — don't retry
         slog.Error("ShortenURL failed",
             "error",  err,
-            "url",    originalURL,
+            "url",    normalised,
             "userID", userID,
         )
         return nil, apperror.InternalWithErr(
             "could not create short url", err)
     }
 
-    // All attempts exhausted
-    slog.Error("ShortenURL failed — max collision attempts reached",
-        "attempts", maxShortCodeAttempts,
-        "url",      originalURL,
-    )
     return nil, apperror.Internal(
         "could not generate unique short code — please try again")
 }
