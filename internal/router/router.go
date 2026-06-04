@@ -33,6 +33,8 @@ func Setup(
 		api.POST("/auth/signup",  authHandler.Signup)
 		api.POST("/auth/login",   authHandler.Login)
 		api.POST("/auth/refresh", authHandler.Refresh)
+		api.POST("/auth/logout", authHandler.Logout)
+		
 		api.GET("/:code",         urlHandler.Redirect)
 
 		// ── Client routes — JWT required ──────────────────────

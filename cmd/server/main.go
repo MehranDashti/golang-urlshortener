@@ -19,6 +19,7 @@ import (
     "urlshortener/internal/router"
     "urlshortener/internal/service"
     "urlshortener/pkg/token"
+    "urlshortener/internal/tokenstore"
 )
 
 func main() {
@@ -27,7 +28,7 @@ func main() {
         slog.Error("invalid configuration", "error", err)
         os.Exit(1)
     }
-    
+
     db  := database.Connect(cfg.DSN)
 
     slog.Info("server starting",
@@ -46,12 +47,15 @@ func main() {
         context.Background())
     defer workerCancel() // cancels all workers on shutdown
 
+    blacklist := tokenstore.NewBlacklist()
+
     transactor   := service.NewDBTransactor(db)
 
     urlRepo      := repository.NewURLRepository(db)
     userRepo     := repository.NewUserRepository(db)
     urlService := service.NewURLService(urlRepo, workerCtx)
-    authService  := service.NewAuthService(userRepo, tokenManager)
+    authService := service.NewAuthService(
+        userRepo, tokenManager, blacklist)
     adminService := service.NewAdminService(urlRepo, userRepo, transactor)
 
     urlHandler   := handler.NewURLHandler(urlService, cfg.BaseURL)
@@ -59,7 +63,7 @@ func main() {
     adminHandler := handler.NewAdminHandler(adminService)
     healthHandler := handler.NewHealthHandler(db)
 
-    authMiddleware := middleware.Auth(tokenManager)
+    authMiddleware := middleware.Auth(tokenManager, blacklist)
     rateLimiter    := middleware.NewRateLimiter(60, time.Minute)
 
     r := router.Setup(

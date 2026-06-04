@@ -1,6 +1,7 @@
 package handler
 
 import (
+    "strings"
     "context"
     "net/http"
 
@@ -16,6 +17,7 @@ type AuthService interface {
     Login(ctx context.Context, email,
         password string) (*service.TokenPair, *apperror.AppError)
     Refresh(refreshToken string) (*service.TokenPair, *apperror.AppError)
+    Logout(accessToken string) *apperror.AppError // ← new
 }
 
 type AuthHandler struct {
@@ -85,4 +87,29 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
         "access_token":  pair.AccessToken,
         "refresh_token": pair.RefreshToken,
     })
+}
+
+func (h *AuthHandler) Logout(c *gin.Context) {
+    // Extract token from header
+    authHeader := c.GetHeader("Authorization")
+    if authHeader == "" {
+        respondError(c, apperror.BadRequest(
+            "authorization header required"))
+        return
+    }
+
+    parts := strings.SplitN(authHeader, " ", 2)
+    if len(parts) != 2 || parts[0] != "Bearer" {
+        respondError(c, apperror.BadRequest(
+            "invalid authorization format"))
+        return
+    }
+
+    if appErr := h.service.Logout(parts[1]); appErr != nil {
+        respondError(c, appErr)
+        return
+    }
+
+    respondSuccess(c, http.StatusOK,
+        "با موفقیت خارج شدید", nil)
 }

@@ -8,6 +8,7 @@ import (
     "time"
     "context"
 
+    "urlshortener/internal/tokenstore"
     "github.com/gin-gonic/gin"
     "github.com/joho/godotenv"
     "gorm.io/driver/mysql"
@@ -69,12 +70,14 @@ func New() *TestServer {
         7*24*time.Hour,
     )
 
+    blacklist    := tokenstore.NewBlacklist()
+
     transactor   := service.NewDBTransactor(db)
 
     urlRepo     := repository.NewURLRepository(db)
     userRepo    := repository.NewUserRepository(db)
     urlService := service.NewURLService(urlRepo, context.Background())
-    authService := service.NewAuthService(userRepo, tokenManager)
+    authService  := service.NewAuthService(userRepo, tokenManager, blacklist)
     adminService := service.NewAdminService(urlRepo, userRepo, transactor)
 
     urlHandler    := handler.NewURLHandler(urlService, "http://localhost:8080")
@@ -83,7 +86,7 @@ func New() *TestServer {
     healthHandler := handler.NewHealthHandler(db)
 
 
-    authMiddleware := middleware.Auth(tokenManager)
+    authMiddleware := middleware.Auth(tokenManager, blacklist)
     // High limit — tests never hit rate limit
     rateLimiter := middleware.NewRateLimiter(10000, time.Minute)
 

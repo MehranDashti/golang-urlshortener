@@ -127,3 +127,38 @@ func TestAuthRefresh_Success(t *testing.T) {
     // (they are different token types even if timestamps match)
     assert.NotEqual(t, data2["access_token"], data2["refresh_token"])
 }
+
+func TestLogout_TokenRevoked(t *testing.T) {
+    s := testserver.New()
+    defer s.CleanDB()
+
+    // Signup + login
+    testhelper.MakeRequest(s.Router, http.MethodPost,
+        "/api/v1/auth/signup",
+        `{"email":"logout@test.com","password":"123456"}`, "")
+
+    w := testhelper.MakeRequest(s.Router, http.MethodPost,
+        "/api/v1/auth/login",
+        `{"email":"logout@test.com","password":"123456"}`, "")
+
+    data := testhelper.GetData(w)
+    accessToken := data["access_token"].(string)
+
+    // Verify token works before logout
+    w2 := testhelper.MakeRequest(s.Router, http.MethodGet,
+        "/api/v1/client/links", "", accessToken)
+    assert.Equal(t, http.StatusOK, w2.Code)
+
+    // Logout
+    w3 := testhelper.MakeRequest(s.Router, http.MethodPost,
+        "/api/v1/auth/logout", "", accessToken)
+    assert.Equal(t, http.StatusOK, w3.Code)
+
+    // Token should now be rejected
+    w4 := testhelper.MakeRequest(s.Router, http.MethodGet,
+        "/api/v1/client/links", "", accessToken)
+    assert.Equal(t, http.StatusUnauthorized, w4.Code)
+
+    body := testhelper.ParseBody(w4)
+    assert.Equal(t, "token has been revoked", body["message"])
+}

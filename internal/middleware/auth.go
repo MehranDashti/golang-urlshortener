@@ -1,63 +1,78 @@
 package middleware
 
 import (
-    "net/http"
-    "strings"
+	"net/http"
+	"strings"
 
-    "github.com/gin-gonic/gin"
-    "urlshortener/pkg/token"
+	"github.com/gin-gonic/gin"
+	"urlshortener/internal/tokenstore"
+	"urlshortener/pkg/token"
 )
 
 const UserIDKey = "userID"
 
-func Auth(tokenManager *token.Manager) gin.HandlerFunc {
-    return func(c *gin.Context) {
-        authHeader := c.GetHeader("Authorization")
-        if authHeader == "" {
-            c.JSON(http.StatusUnauthorized, map[string]interface{}{
-                "success": false,
-                "code":    401,
-                "message": "authorization header required",
-            })
-            c.Abort() 
-            return
-        }
+// Note: UserRoleKey is declared in admin.go — same package, no redeclaration needed
 
-        parts := strings.SplitN(authHeader, " ", 2)
-        if len(parts) != 2 || parts[0] != "Bearer" {
-            c.JSON(http.StatusUnauthorized, map[string]interface{}{
-                "success": false,
-                "code":    401,
-                "message": "invalid authorization format",
-            })
-            c.Abort()
-            return
-        }
+func Auth(
+	tokenManager *token.Manager,
+	blacklist *tokenstore.Blacklist) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, map[string]interface{}{
+				"success": false,
+				"code":    401,
+				"message": "authorization header required",
+			})
+			c.Abort()
+			return
+		}
 
-        claims, err := tokenManager.Validate(parts[1])
-        if err != nil {
-            c.JSON(http.StatusUnauthorized, map[string]interface{}{
-                "success": false,
-                "code":    401,
-                "message": "invalid or expired token",
-            })
-            c.Abort()
-            return
-        }
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.JSON(http.StatusUnauthorized, map[string]interface{}{
+				"success": false,
+				"code":    401,
+				"message": "invalid authorization format",
+			})
+			c.Abort()
+			return
+		}
 
-        // Reject refresh tokens used as access tokens
-        if claims.TokenType != token.AccessToken {
-            c.JSON(http.StatusUnauthorized, map[string]interface{}{
-                "success": false,
-                "code":    401,
-                "message": "invalid token type",
-            })
-            c.Abort()
-            return
-        }
+		claims, err := tokenManager.Validate(parts[1])
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, map[string]interface{}{
+				"success": false,
+				"code":    401,
+				"message": "invalid or expired token",
+			})
+			c.Abort()
+			return
+		}
 
-        c.Set(UserIDKey, claims.UserID)
-        c.Set(UserRoleKey, claims.Role)
-        c.Next()
-    }
+		if claims.TokenType != token.AccessToken {
+			c.JSON(http.StatusUnauthorized, map[string]interface{}{
+				"success": false,
+				"code":    401,
+				"message": "invalid token type",
+			})
+			c.Abort()
+			return
+		}
+
+		// Check blacklist — token revoked on logout?
+		if blacklist.IsRevoked(claims.ID) {
+			c.JSON(http.StatusUnauthorized, map[string]interface{}{
+				"success": false,
+				"code":    401,
+				"message": "token has been revoked",
+			})
+			c.Abort()
+			return
+		}
+
+		c.Set(UserIDKey, claims.UserID)
+		c.Set(UserRoleKey, claims.Role)
+		c.Next()
+	}
 }
