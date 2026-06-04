@@ -94,6 +94,8 @@ func (s *URLService) Close() {
     close(s.clickCh) // closing the channel stops the range loop in clickWorker
 }
 
+const maxShortCodeAttempts = 5
+
 func (s *URLService) ShortenURL(
     ctx context.Context,
     originalURL string,
@@ -103,14 +105,44 @@ func (s *URLService) ShortenURL(
     url := &model.URL{
         UserID:      userID,
         OriginalURL: originalURL,
-        ShortCode:   util.GenerateShortCode(),
         ExpiresAt:   expiresAt,
     }
 
-    if err := s.repo.Create(ctx, url); err != nil {
-        return nil, apperror.InternalWithErr("could not create short url", err)
+    // Retry up to maxShortCodeAttempts times on collision
+    for attempt := 1; attempt <= maxShortCodeAttempts; attempt++ {
+        url.ShortCode = util.GenerateShortCode()
+
+        err := s.repo.Create(ctx, url)
+        if err == nil {
+            return url, nil // success
+        }
+
+        // Unwrap to check if it's a duplicate key error
+        if repository.IsDuplicateKeyError(err) {
+            slog.Warn("short code collision — retrying",
+                "attempt", attempt,
+                "code",    url.ShortCode,
+            )
+            continue // try again with a new code
+        }
+
+        // Any other error — don't retry
+        slog.Error("ShortenURL failed",
+            "error",  err,
+            "url",    originalURL,
+            "userID", userID,
+        )
+        return nil, apperror.InternalWithErr(
+            "could not create short url", err)
     }
-    return url, nil
+
+    // All attempts exhausted
+    slog.Error("ShortenURL failed — max collision attempts reached",
+        "attempts", maxShortCodeAttempts,
+        "url",      originalURL,
+    )
+    return nil, apperror.Internal(
+        "could not generate unique short code — please try again")
 }
 
 func (s *URLService) GetByShortCode(

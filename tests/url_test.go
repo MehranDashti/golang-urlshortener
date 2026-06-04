@@ -93,3 +93,20 @@ func TestRedirect_Integration_Expired(t *testing.T) {
 
     assert.Equal(t, http.StatusGone, w2.Code)
 }
+
+func TestShorten_CollisionRetry(t *testing.T) {
+    s := testserver.New()
+    defer s.CleanDB()
+
+    token := loginUser(t, s, "test@example.com", "123456")
+
+    // Create 50 short links rapidly — collision probability increases
+    // with more links but GenerateShortCode should handle it
+    for i := 0; i < 50; i++ {
+        w := testhelper.MakeRequest(s.Router,
+            http.MethodPost, "/api/v1/client/shorten",
+            `{"url":"https://google.com"}`, token)
+        assert.Equal(t, http.StatusCreated, w.Code,
+            "request %d should succeed", i)
+    }
+}
