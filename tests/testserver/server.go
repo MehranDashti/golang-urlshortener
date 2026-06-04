@@ -77,15 +77,17 @@ func New() *TestServer {
     authService := service.NewAuthService(userRepo, tokenManager)
     adminService := service.NewAdminService(urlRepo, userRepo, transactor)
 
-    urlHandler   := handler.NewURLHandler(urlService, "http://localhost:8080")
-    authHandler  := handler.NewAuthHandler(authService)
-    adminHandler := handler.NewAdminHandler(adminService)
+    urlHandler    := handler.NewURLHandler(urlService, "http://localhost:8080")
+    authHandler   := handler.NewAuthHandler(authService)
+    adminHandler  := handler.NewAdminHandler(adminService)
+    healthHandler := handler.NewHealthHandler(db)
+
 
     authMiddleware := middleware.Auth(tokenManager)
     // High limit — tests never hit rate limit
     rateLimiter := middleware.NewRateLimiter(10000, time.Minute)
 
-    r := router.Setup(urlHandler, authHandler, adminHandler,
+    r := router.Setup(urlHandler, authHandler, adminHandler, healthHandler,
         authMiddleware, rateLimiter.Middleware())
 
     return &TestServer{Router: r, DB: db}

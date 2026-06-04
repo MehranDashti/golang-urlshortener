@@ -23,6 +23,11 @@ import (
 
 func main() {
     cfg := config.Load()
+    if err := cfg.Validate(); err != nil {
+        slog.Error("invalid configuration", "error", err)
+        os.Exit(1)
+    }
+    
     db  := database.Connect(cfg.DSN)
 
     slog.Info("server starting",
@@ -52,6 +57,7 @@ func main() {
     urlHandler   := handler.NewURLHandler(urlService, cfg.BaseURL)
     authHandler  := handler.NewAuthHandler(authService)
     adminHandler := handler.NewAdminHandler(adminService)
+    healthHandler := handler.NewHealthHandler(db)
 
     authMiddleware := middleware.Auth(tokenManager)
     rateLimiter    := middleware.NewRateLimiter(60, time.Minute)
@@ -60,6 +66,7 @@ func main() {
         urlHandler,
         authHandler,
         adminHandler,
+        healthHandler, 
         authMiddleware,
         rateLimiter.Middleware(),
     )

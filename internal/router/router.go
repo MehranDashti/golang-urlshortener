@@ -15,6 +15,7 @@ func Setup(
 	urlHandler   *handler.URLHandler,
 	authHandler  *handler.AuthHandler,
 	adminHandler *handler.AdminHandler,
+	healthHandler *handler.HealthHandler,
 	authMiddleware gin.HandlerFunc,
 	rateLimiter    gin.HandlerFunc,
 ) *gin.Engine {
@@ -24,6 +25,8 @@ func Setup(
 	r.Use(rateLimiter)
 	r.Use(middleware.Timeout(30 * time.Second))
 
+	r.GET("/health", healthHandler.Check)
+	
 	api := r.Group("/api/v1")
 	{
 		// ── Public routes ─────────────────────────────────────

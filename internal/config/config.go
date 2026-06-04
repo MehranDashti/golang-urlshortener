@@ -5,6 +5,8 @@ import(
     "os"
     "strconv"
     "time"
+    "log/slog"
+    "strings"
 
     "github.com/joho/godotenv"
 )
@@ -55,4 +57,34 @@ func Load() *Config {
         AccessTokenDuration:  time.Duration(accessMinutes) * time.Minute,
         RefreshTokenDuration: time.Duration(refreshDays) * 24 * time.Hour,
 	}
+}
+
+func (c *Config) Validate() error {
+    var missing []string
+
+    if c.Port == "" {
+        missing = append(missing, "APP_PORT")
+    }
+    if c.BaseURL == "" {
+        missing = append(missing, "APP_BASE_URL")
+    }
+    if c.JWTSecret == "" {
+        missing = append(missing, "JWT_SECRET")
+    }
+    if c.DSN == "" {
+        missing = append(missing, "DB_USER/DB_PASS/DB_HOST/DB_PORT/DB_NAME")
+    }
+
+    if len(missing) > 0 {
+        return fmt.Errorf("missing required env vars: %s",
+            strings.Join(missing, ", "))
+    }
+
+    // Warn about weak JWT secret in production
+    if len(c.JWTSecret) < 32 {
+        slog.Warn("JWT_SECRET is short — use at least 32 characters in production",
+            "length", len(c.JWTSecret))
+    }
+
+    return nil
 }
