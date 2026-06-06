@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
+	"urlshortener/tests/testcontainer"
 	"gorm.io/gorm"
 
 	"urlshortener/internal/model"
@@ -16,11 +16,14 @@ import (
 )
 
 func setupTestDB(t *testing.T) *gorm.DB {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	err = db.AutoMigrate(&model.URL{})
-	require.NoError(t, err)
-	return db
+    t.Helper()
+    ctx := context.Background()
+
+    db, cleanup, err := testcontainer.NewMySQL(ctx)
+    require.NoError(t, err, "failed to start MySQL container")
+
+    t.Cleanup(cleanup) // container terminates when test ends
+    return db
 }
 
 func TestCreate(t *testing.T) {
