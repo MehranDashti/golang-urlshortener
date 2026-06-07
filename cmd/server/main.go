@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"errors" 
 	_ "embed"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"urlshortener/internal/cache"
-	"urlshortener/internal/metrics"
 	"urlshortener/internal/config"
 	"urlshortener/internal/database"
 	"urlshortener/internal/handler"
+	"urlshortener/internal/metrics"
 	"urlshortener/internal/middleware"
 	"urlshortener/internal/repository"
 	"urlshortener/internal/router"

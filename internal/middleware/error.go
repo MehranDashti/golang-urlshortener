@@ -12,13 +12,13 @@ import (
 
 func ErrorHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Next() 
+		c.Next()
 
 		if len(c.Errors) == 0 {
-			return 
+			return
 		}
 
-		err := c.Errors.Last().Err 
+		err := c.Errors.Last().Err
 
 		var appErr *apperror.AppError
 		if errors.As(err, &appErr) {
@@ -34,7 +34,7 @@ func ErrorHandler() gin.HandlerFunc {
 				"success": false,
 				"code":    appErr.Code,
 				"message": appErr.Message,
-				"error":   appErr.Details, 
+				"error":   appErr.Details,
 			})
 			return
 		}

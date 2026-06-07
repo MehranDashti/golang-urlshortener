@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"gorm.io/gorm"
@@ -10,10 +11,9 @@ import (
 	"log/slog"
 	"sync"
 	"time"
-	"encoding/json"
 
-	"urlshortener/internal/cache"
 	"urlshortener/internal/apperror"
+	"urlshortener/internal/cache"
 	"urlshortener/internal/model"
 	"urlshortener/internal/repository"
 	"urlshortener/internal/trace"
@@ -37,7 +37,7 @@ type URLRepository interface {
 
 type URLService struct {
 	repo      URLRepository
-	cache   *cache.RedisCache
+	cache     *cache.RedisCache
 	clickCh   chan string
 	recentIDs sync.Map
 }
@@ -58,16 +58,16 @@ type ImportResult struct {
 }
 
 func NewURLService(
-    repo URLRepository,
-    cache *cache.RedisCache,
-    ctx context.Context) *URLService {
-    s := &URLService{
-        repo:    repo,
-        cache:   cache,
-        clickCh: make(chan string, 100),
-    }
-    go s.clickWorker(ctx)
-    return s
+	repo URLRepository,
+	cache *cache.RedisCache,
+	ctx context.Context) *URLService {
+	s := &URLService{
+		repo:    repo,
+		cache:   cache,
+		clickCh: make(chan string, 100),
+	}
+	go s.clickWorker(ctx)
+	return s
 }
 
 func (s *URLService) clickWorker(ctx context.Context) {
@@ -176,31 +176,31 @@ func (s *URLService) ShortenURL(
 }
 
 func (s *URLService) GetByShortCode(ctx context.Context, code string) (*model.URL, *apperror.AppError) {
-    if s.cache != nil {
-        cacheKey := urlCachePrefix + code
-        if data, err := s.cache.Get(ctx, cacheKey); err == nil {
-            var url model.URL
-            if err := json.Unmarshal(data, &url); err == nil {
-                return &url, nil
-            }
-        }
-    }
+	if s.cache != nil {
+		cacheKey := urlCachePrefix + code
+		if data, err := s.cache.Get(ctx, cacheKey); err == nil {
+			var url model.URL
+			if err := json.Unmarshal(data, &url); err == nil {
+				return &url, nil
+			}
+		}
+	}
 
-    url, err := s.repo.FindByShortCode(ctx, code)
-    if err != nil {
-        if errors.Is(err, repository.ErrNotFound) {
-            return nil, apperror.NotFound("short url not found")
-        }
-        return nil, apperror.InternalWithErr("something went wrong", err)
-    }
+	url, err := s.repo.FindByShortCode(ctx, code)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, apperror.NotFound("short url not found")
+		}
+		return nil, apperror.InternalWithErr("something went wrong", err)
+	}
 
-    if s.cache != nil {
-        if data, err := json.Marshal(url); err == nil {
-            _ = s.cache.Set(ctx, urlCachePrefix+code, data, urlCacheTTL)
-        }
-    }
+	if s.cache != nil {
+		if data, err := json.Marshal(url); err == nil {
+			_ = s.cache.Set(ctx, urlCachePrefix+code, data, urlCacheTTL)
+		}
+	}
 
-    return url, nil
+	return url, nil
 }
 
 func (s *URLService) GetUserLinks(

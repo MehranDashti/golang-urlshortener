@@ -53,9 +53,9 @@ type DBTransactor struct {
 }
 
 type DashboardData struct {
-    Links    []*model.URL
-    Users    []*model.User
-    TopLinks []*model.URL  // ← add this
+	Links    []*model.URL
+	Users    []*model.User
+	TopLinks []*model.URL // ← add this
 }
 
 func NewDBTransactor(db *gorm.DB) *DBTransactor {
@@ -143,7 +143,6 @@ func (s *AdminService) DeleteUser(
 	}
 	return nil
 }
-
 
 func (s *AdminService) GetDashboard(
 	ctx context.Context) (*DashboardData, *apperror.AppError) {

@@ -8,22 +8,22 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"urlshortener/tests/testcontainer"
 	"gorm.io/gorm"
+	"urlshortener/tests/testcontainer"
 
 	"urlshortener/internal/model"
 	"urlshortener/internal/repository"
 )
 
 func setupTestDB(t *testing.T) *gorm.DB {
-    t.Helper()
-    ctx := context.Background()
+	t.Helper()
+	ctx := context.Background()
 
-    db, cleanup, err := testcontainer.NewMySQL(ctx)
-    require.NoError(t, err, "failed to start MySQL container")
+	db, cleanup, err := testcontainer.NewMySQL(ctx)
+	require.NoError(t, err, "failed to start MySQL container")
 
-    t.Cleanup(cleanup) // container terminates when test ends
-    return db
+	t.Cleanup(cleanup) // container terminates when test ends
+	return db
 }
 
 func TestCreate(t *testing.T) {
@@ -100,9 +100,9 @@ func TestCreate_DuplicateShortCode(t *testing.T) {
 	assert.NoError(t, err1)
 
 	err2 := repo.Create(context.Background(), url2)
-	assert.Error(t, err2) 
+	assert.Error(t, err2)
 
 	assert.Contains(t, err2.Error(), "URLRepository.Create")
-	
+
 	t.Logf("wrapped error: %v", err2)
 }

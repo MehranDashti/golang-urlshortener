@@ -1,10 +1,10 @@
 package database
 
 import (
-	"log/slog"
 	"fmt"
-	"time"
+	"log/slog"
 	"sync"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang-migrate/migrate/v4"

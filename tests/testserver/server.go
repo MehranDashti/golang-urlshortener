@@ -8,11 +8,11 @@ import (
 	"runtime"
 	"time"
 
-	"urlshortener/internal/cache"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"urlshortener/internal/cache"
 	"urlshortener/internal/handler"
 	"urlshortener/internal/middleware"
 	"urlshortener/internal/model"

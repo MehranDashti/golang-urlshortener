@@ -86,9 +86,6 @@ test-all:
 fuzz:
 	go test -fuzz=FuzzNormaliseURL -fuzztime=30s ./internal/util/...
 
-fuzz-shortcode:
-	go test -fuzz=FuzzGenerateShortCode -fuzztime=30s ./internal/util/...
-
 fuzz-url:
 	go test -fuzz=FuzzNormaliseURL -fuzztime=30s ./internal/util/...
 
