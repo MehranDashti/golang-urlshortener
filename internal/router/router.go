@@ -27,6 +27,8 @@ func Setup(
 	r.Use(middleware.Timeout(30 * time.Second))
 
 	r.GET("/health", healthHandler.Check)
+	r.GET("/healthz", healthHandler.Healthz)
+	r.GET("/readyz", healthHandler.Readyz)	
 
 	api := r.Group("/api/v1")
 	{
