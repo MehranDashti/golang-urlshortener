@@ -175,32 +175,58 @@ func (s *URLService) ShortenURL(
 		"could not generate unique short code — please try again")
 }
 
-func (s *URLService) GetByShortCode(ctx context.Context, code string) (*model.URL, *apperror.AppError) {
-	if s.cache != nil {
-		cacheKey := urlCachePrefix + code
-		if data, err := s.cache.Get(ctx, cacheKey); err == nil {
-			var url model.URL
-			if err := json.Unmarshal(data, &url); err == nil {
-				return &url, nil
-			}
-		}
-	}
+func (s *URLService) GetByShortCode(
+    ctx context.Context,
+    code string) (*model.URL, *apperror.AppError) {
 
-	url, err := s.repo.FindByShortCode(ctx, code)
-	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return nil, apperror.NotFound("short url not found")
-		}
-		return nil, apperror.InternalWithErr("something went wrong", err)
-	}
+    // 1. Check cache first
+    if s.cache != nil {
+        cacheKey := urlCachePrefix + code
+        if data, err := s.cache.Get(ctx, cacheKey); err == nil {
+            var url model.URL
+            if err := json.Unmarshal(data, &url); err == nil {
+                // Must check expiry even on cache hit —
+                // URL may have expired while sitting in cache
+                if url.ExpiresAt != nil && time.Now().After(*url.ExpiresAt) {
+                    _ = s.cache.Delete(ctx, cacheKey) // evict stale entry
+                    return nil, apperror.Gone("short url has expired")
+                }
+                return &url, nil
+            }
+        }
+    }
 
-	if s.cache != nil {
-		if data, err := json.Marshal(url); err == nil {
-			_ = s.cache.Set(ctx, urlCachePrefix+code, data, urlCacheTTL)
-		}
-	}
+    // 2. Cache miss — query DB
+    url, err := s.repo.FindByShortCode(ctx, code)
+    if err != nil {
+        if errors.Is(err, repository.ErrNotFound) {
+            return nil, apperror.NotFound("short url not found")
+        }
+        return nil, apperror.InternalWithErr("something went wrong", err)
+    }
 
-	return url, nil
+    // 3. Expiry check
+    if url.ExpiresAt != nil && time.Now().After(*url.ExpiresAt) {
+        return nil, apperror.Gone("short url has expired")
+    }
+
+    // 4. Cache only non-expired URLs
+    if s.cache != nil {
+        if data, err := json.Marshal(url); err == nil {
+            _ = s.cache.Set(ctx, urlCachePrefix+code, data, urlCacheTTL)
+        }
+    }
+
+    // 5. Click tracking
+    if _, alreadyClicked := s.recentIDs.Load(url.ID); !alreadyClicked {
+        select {
+        case s.clickCh <- url.ID:
+        default:
+            slog.Warn("click channel full, dropping increment", "url_id", url.ID)
+        }
+    }
+
+    return url, nil
 }
 
 func (s *URLService) GetUserLinks(

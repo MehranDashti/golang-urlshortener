@@ -14,7 +14,7 @@ import (
 
 func TestHealthCheck(t *testing.T) {
 	s := testserver.New()
-	defer s.CleanDB()
+	defer s.Close()
 
 	w := testhelper.MakeRequest(s.Router,
 		http.MethodGet, "/health", "", "")
@@ -28,7 +28,7 @@ func TestHealthCheck(t *testing.T) {
 
 func TestHealthCheck_ReturnsVersion(t *testing.T) {
 	s := testserver.New()
-	defer s.CleanDB()
+	defer s.Close()
 
 	w := testhelper.MakeRequest(s.Router,
 		http.MethodGet, "/health", "", "")
@@ -39,7 +39,7 @@ func TestHealthCheck_ReturnsVersion(t *testing.T) {
 
 func TestTraceID_InResponse(t *testing.T) {
 	s := testserver.New()
-	defer s.CleanDB()
+	defer s.Close()
 
 	w := testhelper.MakeRequest(s.Router,
 		http.MethodGet, "/health", "", "")
@@ -54,7 +54,7 @@ func TestTraceID_InResponse(t *testing.T) {
 
 func TestTraceID_PropagatesFromRequest(t *testing.T) {
 	s := testserver.New()
-	defer s.CleanDB()
+	defer s.Close()
 
 	// Send a custom trace ID
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)

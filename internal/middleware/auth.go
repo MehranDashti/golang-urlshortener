@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"urlshortener/internal/tokenstore"
 	"urlshortener/pkg/token"
+	"urlshortener/internal/apperror"
 )
 
 const UserIDKey = "userID"
@@ -63,7 +64,8 @@ func Auth(
 		// Check blacklist — token revoked on logout?
 		revoked, err := blacklist.IsRevoked(c.Request.Context(), claims.ID)
 		if err != nil || revoked {
-			c.AbortWithStatus(http.StatusUnauthorized)
+			_ = c.Error(apperror.Unauthorized("token has been revoked"))
+			c.Abort()
 			return
 		}
 

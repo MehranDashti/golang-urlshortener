@@ -67,3 +67,8 @@ func (c *RedisCache) Exists(ctx context.Context, key string) (bool, error) {
 	}
 	return n > 0, nil
 }
+
+// Close closes the underlying Redis connection pool.
+func (c *RedisCache) Close() error {
+    return c.client.Close()
+}

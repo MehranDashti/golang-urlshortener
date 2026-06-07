@@ -24,8 +24,10 @@ import (
 )
 
 type TestServer struct {
-	Router *gin.Engine
-	DB     *gorm.DB
+    Router *gin.Engine
+    DB     *gorm.DB
+    cancel context.CancelFunc
+    redis  *cache.RedisCache
 }
 
 func New() *TestServer {
@@ -68,7 +70,8 @@ func New() *TestServer {
 
 	urlRepo := repository.NewURLRepository(db)
 	userRepo := repository.NewUserRepository(db)
-	urlService := service.NewURLService(urlRepo, redisCache, context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	urlService := service.NewURLService(urlRepo, redisCache, ctx)
 	authService := service.NewAuthService(userRepo, tokenManager, blacklist)
 	adminService := service.NewAdminService(urlRepo, userRepo, transactor)
 
@@ -93,7 +96,12 @@ func New() *TestServer {
 		clientLimiter.Middleware(),
 	)
 
-	return &TestServer{Router: r, DB: db}
+	return &TestServer{
+		Router: r,
+		DB:     db,
+		cancel: cancel,
+		redis:  redisCache,
+	}
 }
 
 // CleanDB truncates all tables between tests — like Laravel's RefreshDatabase
@@ -102,4 +110,15 @@ func (s *TestServer) CleanDB() {
 	s.DB.Exec("TRUNCATE TABLE urls")
 	s.DB.Exec("TRUNCATE TABLE users")
 	s.DB.Exec("SET FOREIGN_KEY_CHECKS = 1")
+}
+
+func (s *TestServer) Close() {
+    s.CleanDB()
+    s.cancel()
+    if sqlDB, err := s.DB.DB(); err == nil {
+        _ = sqlDB.Close()
+    }
+    if s.redis != nil {
+        _ = s.redis.Close()
+    }
 }

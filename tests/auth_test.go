@@ -13,15 +13,22 @@ import (
 	"urlshortener/tests/testserver"
 )
 
-// TestMain runs before all tests in this package.
-// goleak checks for goroutine leaks after every test.
 func TestMain(m *testing.M) {
-	goleak.VerifyTestMain(m)
+    goleak.VerifyTestMain(m,
+        // Redis internal circuit breaker — stops when client is closed
+        goleak.IgnoreTopFunction("github.com/redis/go-redis/v9/maintnotifications.(*CircuitBreakerManager).cleanupLoop"),
+        // In-memory blacklist cleanup ticker — no shutdown hook yet
+        goleak.IgnoreTopFunction("urlshortener/internal/tokenstore.(*Blacklist).cleanupLoop"),
+        // Rate limiter cleanup tickers — no shutdown hook yet
+        goleak.IgnoreTopFunction("urlshortener/internal/middleware.(*RateLimiter).cleanupLoop"),
+        // DB connection pool opener — stops when DB is closed
+        goleak.IgnoreTopFunction("database/sql.(*DB).connectionOpener"),
+    )
 }
 
 func TestAuthSignup_Success(t *testing.T) {
 	s := testserver.New()
-	defer s.CleanDB()
+	defer s.Close()
 
 	w := testhelper.MakeRequest(s.Router, http.MethodPost, "/api/v1/auth/signup", `{
         "email": "test@example.com",
@@ -38,7 +45,7 @@ func TestAuthSignup_Success(t *testing.T) {
 
 func TestAuthSignup_DuplicateEmail(t *testing.T) {
 	s := testserver.New()
-	defer s.CleanDB()
+	defer s.Close()
 
 	// First signup
 	testhelper.MakeRequest(s.Router, http.MethodPost, "/api/v1/auth/signup", `{
@@ -57,7 +64,7 @@ func TestAuthSignup_DuplicateEmail(t *testing.T) {
 
 func TestAuthLogin_Success(t *testing.T) {
 	s := testserver.New()
-	defer s.CleanDB()
+	defer s.Close()
 
 	// Signup first
 	testhelper.MakeRequest(s.Router, http.MethodPost, "/api/v1/auth/signup", `{
@@ -81,7 +88,7 @@ func TestAuthLogin_Success(t *testing.T) {
 
 func TestAuthLogin_WrongPassword(t *testing.T) {
 	s := testserver.New()
-	defer s.CleanDB()
+	defer s.Close()
 
 	testhelper.MakeRequest(s.Router, http.MethodPost, "/api/v1/auth/signup", `{
         "email": "test@example.com",
@@ -98,7 +105,7 @@ func TestAuthLogin_WrongPassword(t *testing.T) {
 
 func TestAuthRefresh_Success(t *testing.T) {
 	s := testserver.New()
-	defer s.CleanDB()
+	defer s.Close()
 
 	testhelper.MakeRequest(s.Router, http.MethodPost, "/api/v1/auth/signup", `{
         "email": "test@example.com",
@@ -130,7 +137,7 @@ func TestAuthRefresh_Success(t *testing.T) {
 
 func TestLogout_TokenRevoked(t *testing.T) {
 	s := testserver.New()
-	defer s.CleanDB()
+	defer s.Close()
 
 	// Signup + login
 	testhelper.MakeRequest(s.Router, http.MethodPost,

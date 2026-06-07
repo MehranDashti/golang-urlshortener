@@ -14,7 +14,7 @@ import (
 
 func TestDeleteUser_DeletesLinksAndUser(t *testing.T) {
 	s := testserver.New()
-	defer s.CleanDB()
+	defer s.Close()
 
 	// Create admin user
 	adminToken := makeAdmin(t, s)

@@ -27,7 +27,7 @@ func loginUser(t *testing.T, s *testserver.TestServer, email, password string) s
 
 func TestShorten_Integration_Success(t *testing.T) {
 	s := testserver.New()
-	defer s.CleanDB()
+	defer s.Close()
 
 	token := loginUser(t, s, "test@example.com", "123456")
 
@@ -44,7 +44,7 @@ func TestShorten_Integration_Success(t *testing.T) {
 
 func TestShorten_Integration_Unauthorized(t *testing.T) {
 	s := testserver.New()
-	defer s.CleanDB()
+	defer s.Close()
 
 	w := testhelper.MakeRequest(s.Router, http.MethodPost, "/api/v1/client/shorten",
 		`{"url": "https://google.com"}`, "")
@@ -54,7 +54,7 @@ func TestShorten_Integration_Unauthorized(t *testing.T) {
 
 func TestListLinks_Integration(t *testing.T) {
 	s := testserver.New()
-	defer s.CleanDB()
+	defer s.Close()
 
 	token := loginUser(t, s, "test@example.com", "123456")
 
@@ -76,7 +76,7 @@ func TestListLinks_Integration(t *testing.T) {
 
 func TestRedirect_Integration_Expired(t *testing.T) {
 	s := testserver.New()
-	defer s.CleanDB()
+	defer s.Close()
 
 	token := loginUser(t, s, "test@example.com", "123456")
 
@@ -96,7 +96,7 @@ func TestRedirect_Integration_Expired(t *testing.T) {
 
 func TestShorten_CollisionRetry(t *testing.T) {
 	s := testserver.New()
-	defer s.CleanDB()
+	defer s.Close()
 
 	token := loginUser(t, s, "test@example.com", "123456")
 
