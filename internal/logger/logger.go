@@ -42,11 +42,6 @@ func parseLevel(s string) slog.Level {
 	}
 }
 
-func isProduction() bool {
-	env := strings.ToLower(os.Getenv("APP_ENV"))
-	return env == "production" || env == "prod"
-}
-
 func formatName(h slog.Handler) string {
 	switch h.(type) {
 	case *slog.JSONHandler:
