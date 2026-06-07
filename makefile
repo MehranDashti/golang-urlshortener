@@ -154,6 +154,10 @@ profile-heap:
 profile-goroutines:
 	curl -s "http://localhost:8080/api/v1/debug/pprof/goroutine?debug=2"
 
+# ── LOG ───────────────────────────────────────────────────────────
+run-prod:
+	APP_ENV=production LOG_LEVEL=info go run ./cmd/server/...
+
 # ── Help ──────────────────────────────────────────────────────────
 
 help:

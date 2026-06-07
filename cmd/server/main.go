@@ -23,12 +23,14 @@ import (
 	"urlshortener/internal/service"
 	"urlshortener/internal/tokenstore"
 	"urlshortener/pkg/token"
+	"urlshortener/internal/logger"
 )
 
 var blacklist tokenstore.TokenBlacklist = tokenstore.NewBlacklist()
 
 func main() {
 	cfg := config.Load()
+	logger.Setup(cfg.ENV, cfg.LogLevel)
 	if err := cfg.Validate(); err != nil {
 		slog.Error("invalid configuration", "error", err)
 		os.Exit(1)

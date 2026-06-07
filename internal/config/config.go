@@ -13,16 +13,17 @@ import (
 
 type Config struct {
 	Port                 string
+	ENV                  string
 	BaseURL              string
 	DSN                  string
 	JWTSecret            string
 	JWTDuration          time.Duration
 	AccessTokenDuration  time.Duration
 	RefreshTokenDuration time.Duration
-	// Add to Config struct:
-	RedisAddr     string
-	RedisPassword string
-	RedisDB       int
+	RedisAddr            string
+	RedisPassword        string
+	RedisDB              int
+	LogLevel             string
 }
 
 func Load() *Config {
@@ -59,6 +60,7 @@ func Load() *Config {
 
 	return &Config{
 		Port:                 os.Getenv("APP_PORT"),
+		ENV:                  os.Getenv("APP_ENV"),
 		BaseURL:              os.Getenv("APP_BASE_URL"),
 		DSN:                  dsn,
 		JWTSecret:            os.Getenv("JWT_SECRET"),
@@ -68,6 +70,7 @@ func Load() *Config {
 		RedisAddr:            os.Getenv("REDIS_ADDR"),
 		RedisPassword:        os.Getenv("REDIS_PASSWORD"),
 		RedisDB:              redisDB,
+		LogLevel:             os.Getenv("LOG_LEVEL"),
 	}
 }
 
