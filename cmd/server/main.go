@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors" 
 	_ "embed"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"urlshortener/internal/metrics"
 	"urlshortener/internal/config"
 	"urlshortener/internal/database"
 	"urlshortener/internal/handler"
@@ -101,6 +103,15 @@ func main() {
 			// ErrServerClosed is expected on shutdown — not a real error
 			slog.Error("server failed", "error", err)
 			os.Exit(1)
+		}
+	}()
+
+	// Start metrics server on a separate port (pure net/http, no Gin)  ← HERE
+	metricsServer := metrics.NewServer(":9090")
+	go func() {
+		slog.Info("metrics server starting", "port", 9090)
+		if err := metricsServer.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("metrics server failed", "error", err)
 		}
 	}()
 
