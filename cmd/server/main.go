@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"urlshortener/internal/cache"
 	"urlshortener/internal/metrics"
 	"urlshortener/internal/config"
 	"urlshortener/internal/database"
@@ -24,6 +25,8 @@ import (
 	"urlshortener/pkg/token"
 )
 
+var blacklist tokenstore.TokenBlacklist = tokenstore.NewBlacklist()
+
 func main() {
 	cfg := config.Load()
 	if err := cfg.Validate(); err != nil {
@@ -32,6 +35,13 @@ func main() {
 	}
 
 	db := database.Connect(cfg.DSN)
+
+	redisCache := cache.NewRedisCache(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
+	if err := redisCache.Ping(context.Background()); err != nil {
+		slog.Warn("redis unavailable — falling back to in-memory", "error", err)
+	} else {
+		blacklist = tokenstore.NewRedisBlacklist(redisCache)
+	}
 
 	slog.Info("server starting",
 		"port", cfg.Port,
@@ -49,13 +59,11 @@ func main() {
 		context.Background())
 	defer workerCancel() // cancels all workers on shutdown
 
-	blacklist := tokenstore.NewBlacklist()
-
 	transactor := service.NewDBTransactor(db)
 
 	urlRepo := repository.NewURLRepository(db)
 	userRepo := repository.NewUserRepository(db)
-	urlService := service.NewURLService(urlRepo, workerCtx)
+	urlService := service.NewURLService(urlRepo, redisCache, workerCtx)
 	authService := service.NewAuthService(
 		userRepo, tokenManager, blacklist)
 	adminService := service.NewAdminService(urlRepo, userRepo, transactor)

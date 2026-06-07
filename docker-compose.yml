@@ -10,6 +10,11 @@ services:
     restart: unless-stopped
     networks:
       - urlshortener
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
 
 networks:
   urlshortener:

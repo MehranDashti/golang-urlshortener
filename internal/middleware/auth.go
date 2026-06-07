@@ -15,7 +15,7 @@ const UserIDKey = "userID"
 
 func Auth(
 	tokenManager *token.Manager,
-	blacklist *tokenstore.Blacklist) gin.HandlerFunc {
+	blacklist tokenstore.TokenBlacklist) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -61,13 +61,9 @@ func Auth(
 		}
 
 		// Check blacklist — token revoked on logout?
-		if blacklist.IsRevoked(claims.ID) {
-			c.JSON(http.StatusUnauthorized, map[string]interface{}{
-				"success": false,
-				"code":    401,
-				"message": "token has been revoked",
-			})
-			c.Abort()
+		revoked, err := blacklist.IsRevoked(c.Request.Context(), claims.ID)
+		if err != nil || revoked {
+			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 

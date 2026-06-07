@@ -19,7 +19,8 @@ type UserRepository interface {
 }
 
 type TokenBlacklist interface {
-	Revoke(jti string, expiry time.Time)
+    Revoke(ctx context.Context, jti string, expiry time.Duration) error
+    IsRevoked(ctx context.Context, jti string) (bool, error)
 }
 
 type TokenPair struct {
@@ -148,14 +149,15 @@ func (s *AuthService) Refresh(
 }
 
 func (s *AuthService) Logout(
-	accessToken string) *apperror.AppError {
+    ctx context.Context, accessToken string) *apperror.AppError {
 
-	claims, err := s.tokenManager.Validate(accessToken)
-	if err != nil {
-		// Token already invalid — logout succeeds silently
-		return nil
-	}
+    claims, err := s.tokenManager.Validate(accessToken)
+    if err != nil {
+        return nil
+    }
 
-	s.blacklist.Revoke(claims.ID, claims.ExpiresAt.Time)
-	return nil
+    if err := s.blacklist.Revoke(ctx, claims.ID, time.Until(claims.ExpiresAt.Time)); err != nil {
+        return apperror.InternalWithErr("failed to revoke token", err)
+    }
+    return nil
 }

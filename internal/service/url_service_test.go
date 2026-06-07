@@ -74,7 +74,7 @@ func TestShortenURL_RetryOnCollision(t *testing.T) {
 		},
 	}
 
-	svc := service.NewURLService(repo, context.Background())
+	svc := service.NewURLService(repo, nil, context.Background())
 	_, appErr := svc.ShortenURL(
 		context.Background(),
 		"https://google.com",
@@ -94,7 +94,7 @@ func TestShortenURL_Success(t *testing.T) {
 		},
 	}
 
-	svc := service.NewURLService(repo, context.Background())
+	svc := service.NewURLService(repo, nil, context.Background())
 	result, appErr := svc.ShortenURL(
 		context.Background(),
 		"https://google.com",
@@ -114,7 +114,7 @@ func TestShortenURL_WithExpiry(t *testing.T) {
 		},
 	}
 
-	svc := service.NewURLService(repo, context.Background())
+	svc := service.NewURLService(repo, nil, context.Background())
 	expiry := time.Now().Add(24 * time.Hour)
 	result, appErr := svc.ShortenURL(
 		context.Background(),

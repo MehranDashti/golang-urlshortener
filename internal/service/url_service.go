@@ -10,7 +10,9 @@ import (
 	"log/slog"
 	"sync"
 	"time"
+	"encoding/json"
 
+	"urlshortener/internal/cache"
 	"urlshortener/internal/apperror"
 	"urlshortener/internal/model"
 	"urlshortener/internal/repository"
@@ -18,6 +20,9 @@ import (
 	"urlshortener/internal/util"
 	"urlshortener/internal/worker"
 )
+
+const urlCachePrefix = "shortcode:"
+const urlCacheTTL = time.Hour
 
 type URLRepository interface {
 	Create(ctx context.Context, url *model.URL) error
@@ -32,6 +37,7 @@ type URLRepository interface {
 
 type URLService struct {
 	repo      URLRepository
+	cache   *cache.RedisCache
 	clickCh   chan string
 	recentIDs sync.Map
 }
@@ -52,14 +58,16 @@ type ImportResult struct {
 }
 
 func NewURLService(
-	repo URLRepository,
-	ctx context.Context) *URLService {
-	s := &URLService{
-		repo:    repo,
-		clickCh: make(chan string, 100),
-	}
-	go s.clickWorker(ctx) // pass context — worker exits when ctx cancelled
-	return s
+    repo URLRepository,
+    cache *cache.RedisCache,
+    ctx context.Context) *URLService {
+    s := &URLService{
+        repo:    repo,
+        cache:   cache,
+        clickCh: make(chan string, 100),
+    }
+    go s.clickWorker(ctx)
+    return s
 }
 
 func (s *URLService) clickWorker(ctx context.Context) {
@@ -167,33 +175,32 @@ func (s *URLService) ShortenURL(
 		"could not generate unique short code — please try again")
 }
 
-func (s *URLService) GetByShortCode(
-	ctx context.Context,
-	code string) (*model.URL, *apperror.AppError) {
+func (s *URLService) GetByShortCode(ctx context.Context, code string) (*model.URL, *apperror.AppError) {
+    if s.cache != nil {
+        cacheKey := urlCachePrefix + code
+        if data, err := s.cache.Get(ctx, cacheKey); err == nil {
+            var url model.URL
+            if err := json.Unmarshal(data, &url); err == nil {
+                return &url, nil
+            }
+        }
+    }
 
-	url, err := s.repo.FindByShortCode(ctx, code)
-	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return nil, apperror.NotFound("short url not found")
-		}
-		return nil, apperror.InternalWithErr("something went wrong", err)
-	}
-	if url.ExpiresAt != nil && time.Now().After(*url.ExpiresAt) {
-		return nil, apperror.Gone("short url has expired")
-	}
+    url, err := s.repo.FindByShortCode(ctx, code)
+    if err != nil {
+        if errors.Is(err, repository.ErrNotFound) {
+            return nil, apperror.NotFound("short url not found")
+        }
+        return nil, apperror.InternalWithErr("something went wrong", err)
+    }
 
-	// Non-blocking click increment using select
-	// If channel is full (100 pending) — drop the click rather than block
-	if _, alreadyClicked := s.recentIDs.Load(url.ID); !alreadyClicked {
-		select {
-		case s.clickCh <- url.ID:
-		default:
-			slog.Warn("click channel full, dropping increment",
-				"url_id", url.ID)
-		}
-	}
+    if s.cache != nil {
+        if data, err := json.Marshal(url); err == nil {
+            _ = s.cache.Set(ctx, urlCachePrefix+code, data, urlCacheTTL)
+        }
+    }
 
-	return url, nil
+    return url, nil
 }
 
 func (s *URLService) GetUserLinks(

@@ -17,7 +17,7 @@ type AuthService interface {
 	Login(ctx context.Context, email,
 		password string) (*service.TokenPair, *apperror.AppError)
 	Refresh(refreshToken string) (*service.TokenPair, *apperror.AppError)
-	Logout(accessToken string) *apperror.AppError // ← new
+	Logout(ctx context.Context, accessToken string) *apperror.AppError
 }
 
 type AuthHandler struct {
@@ -105,7 +105,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
-	if appErr := h.service.Logout(parts[1]); appErr != nil {
+	if appErr := h.service.Logout(c.Request.Context(), parts[1]); appErr != nil {
 		_ = c.Error(appErr)
 		return
 	}

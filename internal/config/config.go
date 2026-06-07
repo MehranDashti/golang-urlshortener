@@ -19,6 +19,11 @@ type Config struct {
 	JWTDuration          time.Duration
 	AccessTokenDuration  time.Duration
 	RefreshTokenDuration time.Duration
+	// Add to Config struct:
+	RedisAddr     string
+	RedisPassword string
+	RedisDB       int
+
 }
 
 func Load() *Config {
@@ -48,6 +53,11 @@ func Load() *Config {
 		refreshDays = 7
 	}
 
+	redisDB, err := strconv.Atoi(os.Getenv("REDIS_DB"))
+	if err != nil {
+		redisDB = 0
+	}
+
 	return &Config{
 		Port:                 os.Getenv("APP_PORT"),
 		BaseURL:              os.Getenv("APP_BASE_URL"),
@@ -56,6 +66,9 @@ func Load() *Config {
 		JWTDuration:          time.Duration(hours) * time.Hour,
 		AccessTokenDuration:  time.Duration(accessMinutes) * time.Minute,
 		RefreshTokenDuration: time.Duration(refreshDays) * 24 * time.Hour,
+		RedisAddr:            os.Getenv("REDIS_ADDR"),
+		RedisPassword:        os.Getenv("REDIS_PASSWORD"),
+		RedisDB:              redisDB,
 	}
 }
 

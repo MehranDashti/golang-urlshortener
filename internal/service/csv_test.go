@@ -74,7 +74,7 @@ func TestWriteLinksCSV(t *testing.T) {
 
 func TestImportLinksCSV(t *testing.T) {
 	repo := &mockURLRepoCSV{}
-	svc := service.NewURLService(repo, context.Background())
+	svc := service.NewURLService(repo, nil, context.Background())
 
 	csvContent := `original_url
 https://google.com

@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"time"
 
+	"urlshortener/internal/cache"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/mysql"
@@ -59,6 +60,7 @@ func New() *TestServer {
 		15*time.Minute,
 		7*24*time.Hour,
 	)
+	redisCache := cache.NewRedisCache("localhost:6379", "", 0)
 
 	blacklist := tokenstore.NewBlacklist()
 
@@ -66,7 +68,7 @@ func New() *TestServer {
 
 	urlRepo := repository.NewURLRepository(db)
 	userRepo := repository.NewUserRepository(db)
-	urlService := service.NewURLService(urlRepo, context.Background())
+	urlService := service.NewURLService(urlRepo, redisCache, context.Background())
 	authService := service.NewAuthService(userRepo, tokenManager, blacklist)
 	adminService := service.NewAdminService(urlRepo, userRepo, transactor)
 

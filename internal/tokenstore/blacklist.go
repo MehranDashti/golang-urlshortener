@@ -1,9 +1,15 @@
 package tokenstore
 
 import (
+	"context"
 	"sync"
 	"time"
 )
+
+type TokenBlacklist interface {
+    Revoke(ctx context.Context, jti string, expiry time.Duration) error
+    IsRevoked(ctx context.Context, jti string) (bool, error)
+}
 
 // Blacklist stores revoked token JTIs in memory.
 // For production: replace with Redis using SETEX for automatic expiry.
@@ -20,23 +26,21 @@ func NewBlacklist() *Blacklist {
 	return b
 }
 
-// Revoke adds a JTI to the blacklist until its expiry.
-func (b *Blacklist) Revoke(jti string, expiry time.Time) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.tokens[jti] = expiry
+func (b *Blacklist) Revoke(_ context.Context, jti string, expiry time.Duration) error {
+    b.mu.Lock()
+    defer b.mu.Unlock()
+    b.tokens[jti] = time.Now().Add(expiry)
+    return nil
 }
 
-// IsRevoked checks if a JTI has been revoked.
-func (b *Blacklist) IsRevoked(jti string) bool {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	expiry, exists := b.tokens[jti]
-	if !exists {
-		return false
-	}
-	// If expired — treat as not revoked (token would fail JWT validation anyway)
-	return time.Now().Before(expiry)
+func (b *Blacklist) IsRevoked(_ context.Context, jti string) (bool, error) {
+    b.mu.RLock()
+    defer b.mu.RUnlock()
+    expiry, exists := b.tokens[jti]
+    if !exists {
+        return false, nil
+    }
+    return time.Now().Before(expiry), nil
 }
 
 // cleanupLoop removes expired entries every minute
